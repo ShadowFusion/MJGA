@@ -28,7 +28,8 @@ local Champions = {
     ["LeeSin"] = true, 
     ["MasterYi"] = true, 
     ["Warwick"] = true, 
-    --["Pyke"] = true, -- Sup
+    ["Hecarim"] = true, 
+    ["Jax"] = true,
 }
 
 --Checking Champion 
@@ -845,4 +846,230 @@ function Warwick:CastR(target)
     end
 end
 
+class "Hecarim"
+function Hecarim:__init()
+    
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 350, Range = 350, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 575, Range = 575, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 1000, Range = 1000, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    
+    
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(
+        function(args)
+            if lastMove + 180 > GetTickCount() then
+                args.Process = false
+            else
+                args.Process = true
+                lastMove = GetTickCount()
+            end
+        end
+    )
+end
 
+function Hecarim:LoadMenu()
+    self.shadowMenuHecarim = MenuElement({type = MENU, id = "shadowHecarim", name = "Shadow Hecarim"})
+    self.shadowMenuHecarim:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenuHecarim.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
+    self.shadowMenuHecarim.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
+    self.shadowMenuHecarim.combo:MenuElement({id = "W", name = "Use W in  Combo", value = true})
+    self.shadowMenuHecarim.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true})
+    self.shadowMenuHecarim:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenuHecarim.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
+    self.shadowMenuHecarim.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
+end
+
+function Hecarim:Draw()
+    if myHero.dead then return end
+end
+
+function Hecarim:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    end
+end
+
+function Hecarim:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenuHecarim.combo.Q:Value() then
+            Control.CastSpell(HK_Q, target)
+        end
+    end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenuHecarim.combo.E:Value() then
+            Control.KeyDown(HK_E)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenuHecarim.combo.W:Value() then
+            Control.KeyDown(HK_W)
+            Control.KeyUp(HK_W)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if Ready(_R) and target and IsValid(target)then
+        if self.shadowMenuHecarim.combo.R:Value() then
+            --print("Value is true")
+            self:CastR(target)
+        end
+    end
+end
+
+function Hecarim:jungleclear()
+if self.shadowMenuHecarim.jungleclear.UseQ:Value() then 
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenuHecarim.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.CastSpell(HK_Q, obj);
+                end
+            end
+        end
+        if Ready(_W) and self.shadowMenuHecarim.jungleclear.UseW:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+            Control.KeyDown(HK_W);
+        end
+    end
+end
+end
+
+function Hecarim:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+class "Jax"
+function Jax:__init()
+    
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 700, Range = 700, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = myHero.range, Range = myHero.range, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.E = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 300, Range = 300, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    
+    
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(
+        function(args)
+            if lastMove + 180 > GetTickCount() then
+                args.Process = false
+            else
+                args.Process = true
+                lastMove = GetTickCount()
+            end
+        end
+    )
+end
+
+function Jax:LoadMenu()
+    self.shadowMenuJax = MenuElement({type = MENU, id = "shadowJax", name = "Shadow Jax"})
+    self.shadowMenuJax:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenuJax.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
+    self.shadowMenuJax.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
+    self.shadowMenuJax.combo:MenuElement({id = "W", name = "Use W in  Combo", value = true})
+    self.shadowMenuJax:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenuJax.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
+    self.shadowMenuJax.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
+    self.shadowMenuJax.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
+    self.shadowMenuJax:MenuElement({type = MENU, id = "autor", name = "Auto R settings"})
+    self.shadowMenuJax.autor:MenuElement({id = "autor", name = "Auto R yourself", value = true})
+    self.shadowMenuJax.autor:MenuElement({id = "selfhealth", name = "Min health to auto E", value = 30, min = 0, max = 100, identifier = "%"})
+end
+
+function Jax:Draw()
+    if myHero.dead then return end
+end
+
+function Jax:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    end
+end
+
+function Jax:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenuJax.combo.Q:Value() then
+            Control.CastSpell(HK_Q, target)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenuJax.combo.E:Value() then
+            Control.KeyDown(HK_E)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if Ready(_W) and target and IsValid(target)then
+        if self.shadowMenuJax.combo.W:Value() then
+            --print("Value is true")
+            Control.KeyDown(HK_W)
+        end
+    end
+end
+
+function Jax:jungleclear()
+if self.shadowMenuJax.jungleclear.UseQ:Value() then 
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenuJax.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.CastSpell(HK_Q, obj);
+                end
+            end
+        end
+        if Ready(_E) and self.shadowMenuJax.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+            Control.CastSpell(HK_E);
+        end
+        if Ready(_W) and self.shadowMenuJax.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+            Control.CastSpell(HK_W);
+        end
+    end
+end
+end
+
+function Jax:autor()   	
+    if self.shadowMenuJax.autor.autor:Value() and Ready(_R) then
+        if myHero.health/myHero.maxHealth <= self.shadowMenuJax.autor.selfhealth:Value()/100 then
+            Control.KeyDown(HK_R)
+    end
+end
+end
