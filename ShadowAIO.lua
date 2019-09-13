@@ -27,7 +27,7 @@ local Champions = {
     ["Urgot"] = true, 
     ["LeeSin"] = true, 
     ["MasterYi"] = true, 
-    --["Ezreal"] = true, -- ADC
+    ["Warwick"] = true, 
     --["Pyke"] = true, -- Sup
 }
 
@@ -46,6 +46,13 @@ Callback.Add("Load", function()
         print("Requires GamsteronPrediction please download the file thanks!");
         return
     end
+    if not FileExist(COMMON_PATH .. "PussyDamageLib.lua") then
+        print("PussyDamageLib. installed Press 2x F6")
+        DownloadFileAsync("https://raw.githubusercontent.com/Pussykate/GoS/master/PussyDamageLib.lua", COMMON_PATH .. "PussyDamageLib.lua", function() end)
+        while not FileExist(COMMON_PATH .. "PussyDamageLib.lua") do end
+    end
+        
+    require('PussyDamageLib')
     local _IsHero = _G[myHero.charName]();
     _IsHero:LoadMenu();
 end)
@@ -164,7 +171,7 @@ function Urgot:AutoR()
     local target = TargetSelector:GetTarget(self.R.Range, 1)
     if Ready(_R) and target and IsValid(target) and (target.health <= target.maxHealth / 4) and self.shadowMenu.autor.AutoR:Value() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        print(Pred.Hitchance)
+        --print(Pred.Hitchance)
             --Control.CastSpell(HK_Q, target)
             self:CastR(target)
     end
@@ -286,7 +293,6 @@ function LeeSin:LoadMenu()
     self.shadowMenuLee.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
     self.shadowMenuLee.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
     self.shadowMenuLee:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-    self.shadowMenuLee.killsteal:MenuElement({id = "AutoR", name = "Auto R", value = true})
     self.shadowMenuLee.killsteal:MenuElement({id = "AutoQ", name = "Auto Q", value = true})
     self.shadowMenuLee:MenuElement({type = MENU, id = "autow", name = "Auto W settings"})
     self.shadowMenuLee.autow:MenuElement({id = "autows", name = "Auto W yourself", value = true})
@@ -631,3 +637,212 @@ function MasterYi:CastQ(target)
         end
     end
 end
+
+class "Warwick"
+function Warwick:__init()
+    
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 600, Range = 600, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 55, Range = 2.5 * myHero.ms, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    
+    
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(
+        function(args)
+            if lastMove + 180 > GetTickCount() then
+                args.Process = false
+            else
+                args.Process = true
+                lastMove = GetTickCount()
+            end
+        end
+    )
+end
+
+function Warwick:LoadMenu()
+    self.shadowMenuWick = MenuElement({type = MENU, id = "shadowWarwick", name = "Shadow Warwick"})
+    self.shadowMenuWick:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenuWick.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
+    self.shadowMenuWick.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
+    self.shadowMenuWick.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true})
+    self.shadowMenuWick:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenuWick.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
+    self.shadowMenuWick.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
+    self.shadowMenuWick.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
+    self.shadowMenuWick:MenuElement({type = MENU, id = "autoe", name = "Auto E settings"})
+    self.shadowMenuWick.autoe:MenuElement({id = "autoe", name = "Auto E yourself", value = true})
+    self.shadowMenuWick.autoe:MenuElement({id = "selfhealth", name = "Min health to auto E", value = 30, min = 0, max = 100, identifier = "%"})
+    self.shadowMenuWick:MenuElement({type = MENU, id = "DodgeSetting", name = "Ddoge Settings"})
+    self.shadowMenuWick.DodgeSetting:MenuElement({id = "DodgeSpells", name = "Dodge Incoming spells with [Q]", value = true})
+    self.shadowMenuWick.DodgeSetting:MenuElement({id = "Follow", name = "Use Q to follow dashes / blinks", value = true})
+	self.shadowMenuWick:MenuElement({type = MENU, id = "Drawing", name = "Drawing Settings"})
+	self.shadowMenuWick.Drawing:MenuElement({id = "DrawQ", name = "Draw [Q] Range", value = true})
+end
+
+function Warwick:Draw()
+    if myHero.dead then return end
+end
+
+function Warwick:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    end
+    self:autoe()
+    self:OnRecvSpell(target);
+    if target then
+        self:FollowDash(target);
+    end
+end
+
+function Warwick:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenuWick.combo.Q:Value() then
+            Control.CastSpell(HK_Q, target)
+        end
+    end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenuWick.combo.E:Value() then
+            Control.KeyDown(HK_E)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    local range = 2.5 * myHero.ms
+    if Ready(_R) and target and IsValid(target)then
+        if self.shadowMenuWick.combo.R:Value() and myHero.pos:DistanceTo(target.pos) <= self.R.Range then
+            --print("Value is true")
+            self:CastR(target)
+        end
+    end
+end
+
+function Warwick:jungleclear()
+if self.shadowMenuWick.jungleclear.UseQ:Value() then 
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenuWick.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.CastSpell(HK_Q, obj);
+                end
+            end
+        end
+        if Ready(_E) and self.shadowMenuWick.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+            Control.CastSpell(HK_E);
+        end
+    end
+end
+end
+
+function Warwick:autoe()   	
+        if self.shadowMenuWick.autoe.autoe:Value() and Ready(_E) then
+            if myHero.health/myHero.maxHealth <= self.shadowMenuWick.autoe.selfhealth:Value()/100 then
+                Control.CastSpell(HK_E)
+        end
+    end
+end
+
+function Warwick:CastDodge()
+    local target = nil
+	local bestchamp = { hero = nil, health = math.huge, maxHealth = math.huge }
+	if Game.HeroCount() > 0 then
+		for i = 1, Game.HeroCount() do
+            local hero = Game.Hero(i)
+			if hero.IsEnemy and hero.visible and myHero.pos:DistanceTo(hero.pos) <= 600 then
+				if hero.maxHealth < bestchamp.maxHealth then
+					bestchamp.hero = hero
+					bestchamp.health = hero.health
+					bestchamp.maxHealth = hero.maxHealth
+				end
+			end
+		end
+		target = bestchamp.hero
+	end
+	if target then
+		local enemiesInRange = 0
+		for i = 1, Game.HeroCount() do
+            local hero = Game.Hero(i)
+			if hero.IsEnemy and hero.team ~= target.team and target.pos:DistanceTo(hero.pos) < 1000 then
+				enemiesInRange = enemiesInRange + 1
+			end
+		end
+		if enemiesInRange > 1 then
+            for i = 1, Game.MinionCount() do
+                local obj = Game.Minion(i)
+                if obj.team ~= myHero.team then
+					if obj and myHero.pos:DistanceTo(obj.pos) < 600 then
+						target = obj
+						break
+					end
+				end
+			end
+		end
+	else
+		for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+				if obj and myHero.pos:DistanceTo(obj.pos) < 600 then
+					target = obj
+					break
+				end
+			end
+		end
+	end
+	if target then
+		if self.shadowMenuWick.DodgeSetting.DodgeSpells:Value() then
+            Control.KeyDown(HK_Q, target);
+		end
+	end
+end
+
+function Warwick:Dodge()
+    local spell = myHero.activeSpell
+	if Ready(_Q) and spell and spell.owner and spell.owner.team == myHero.team and not myHero.attackData.state == STATE_ATTACK then
+		if spell.target and spell.target == myHero then
+			self:CastDodge()
+		else
+			if myHero.pos:DistanceTo(spell.endPos) <= (150 + myHero.boundingRadius) / 2 then
+				self:CastDodge()
+			end
+		end
+	end
+end
+
+function Warwick:FollowDash(target)
+    if self.shadowMenuWick.DodgeSetting.Follow:Value() and target and target.visible and not target.dead and target.pathing and target.pathing.hasMovePath and target.pathing.isDashing then
+        Control.CastSpell(HK_Q, target);
+	end
+end
+
+
+
+function Warwick:OnRecvSpell(target)
+    self:Dodge();
+end
+
+function Warwick:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+
