@@ -23,6 +23,54 @@ local Allys = {}
 local orbwalker
 local TargetSelector
 
+-- [ AutoUpdate ] --
+do
+    
+    local Version = 0.11
+    
+    local Files = {
+        Lua = {
+            Path = SCRIPT_PATH,
+            Name = "ShadowAIO.lua",
+            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIO.lua"
+        },
+        Version = {
+            Path = SCRIPT_PATH,
+            Name = "ShadowAIO.version",
+            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIO.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
+        }
+    }
+    
+    local function AutoUpdate()
+        
+        local function DownloadFile(url, path, fileName)
+            DownloadFileAsync(url, path .. fileName, function() end)
+            while not FileExist(path .. fileName) do end
+        end
+        
+        local function ReadFile(path, fileName)
+            local file = io.open(path .. fileName, "r")
+            local result = file:read()
+            file:close()
+            return result
+        end
+        
+        DownloadFile(Files.Version.Url, Files.Version.Path, Files.Version.Name)
+        local textPos = myHero.pos:To2D()
+        local NewVersion = tonumber(ReadFile(Files.Version.Path, Files.Version.Name))
+        if NewVersion > Version then
+            DownloadFile(Files.Lua.Url, Files.Lua.Path, Files.Lua.Name)
+            print("New ShadowAIO Vers. Press 2x F6")     -- <-- you can change the massage for users here !!!!
+        else
+            print(Files.Version.Name .. ": No Updates Found")   --  <-- here too
+        end
+    
+    end
+    
+    AutoUpdate()
+
+end
+
 local Champions = {
     ["Urgot"] = true, 
     ["LeeSin"] = true, 
@@ -30,6 +78,7 @@ local Champions = {
     ["Warwick"] = true, 
     ["Hecarim"] = true, 
     ["Jax"] = true,
+    ["Amumu"] = true,
 }
 
 --Checking Champion 
@@ -1072,4 +1121,167 @@ function Jax:autor()
             Control.KeyDown(HK_R)
     end
 end
+end
+
+class "Amumu"
+function Amumu:__init()
+    
+    self.Q = {_G.SPELLTYPE_LINE, Delay = 0.225, Radius = 1100, Range = 1100, Speed = 2000, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 550, Range = 550, Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
+    self.E = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 350, Range = 350, Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
+    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 300, Range = 300, Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
+
+    
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(
+        function(args)
+            if lastMove + 180 > GetTickCount() then
+                args.Process = false
+            else
+                args.Process = true
+                lastMove = GetTickCount()
+            end
+        end
+    )
+end
+
+function Amumu:LoadMenu()
+    self.shadowMenuAmumu = MenuElement({type = MENU, id = "shadowAmumu", name = "Shadow Amumu"})
+    self.shadowMenuAmumu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenuAmumu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
+    self.shadowMenuAmumu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
+    self.shadowMenuAmumu.combo:MenuElement({id = "W", name = "Use W in  Combo", value = true})
+    self.shadowMenuAmumu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenuAmumu.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
+    self.shadowMenuAmumu.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
+    self.shadowMenuAmumu.jungleclear:MenuElement({id = "wmanajungle", name = "Stop using W in clear at what %", value = 30, min = 0, max = 100, identifier = "%"})
+    self.shadowMenuAmumu.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
+    self.shadowMenuAmumu:MenuElement({type = MENU, id = "autor", name = "Auto R settings"})
+    self.shadowMenuAmumu.autor:MenuElement({id = "autor", name = "If can auto sun with [R] use automatically", value = true})
+    self.shadowMenuAmumu.autor:MenuElement({id = "autormin", name = "How many eneimies inside [R] range to ult.", value = 2, min = 1, max = 4, step = 1}) 
+    self.shadowMenuAmumu:MenuElement({type = MENU, id = "killsteal", name = "Killsteal settings"})
+    self.shadowMenuAmumu.killsteal:MenuElement({id = "useq", name = "If can kill target with [Q] use automatically", value = true})
+    self.shadowMenuAmumu.killsteal:MenuElement({id = "usee", name = "If can kill target with [E] use automatically", value = true})
+
+end
+
+function Amumu:Draw()
+    if myHero.dead then return end
+end
+
+function Amumu:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    self:autor()
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    end
+end
+
+function Amumu:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenuAmumu.combo.Q:Value() then
+            self:CastQ(target)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenuAmumu.combo.E:Value() then
+            Control.CastSpell(HK_E, target)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if Ready(_W) and target and IsValid(target)then
+        if self.shadowMenuAmumu.combo.W:Value() then
+            --print("Value is true")
+            Control.KeyDown(HK_W)
+        end
+    end
+end
+
+function Amumu:jungleclear()
+    if self.shadowMenuAmumu.jungleclear.UseQ:Value() then 
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenuAmumu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                        Control.CastSpell(HK_Q, obj);
+                    end
+                end
+            end
+            if Ready(_E) and self.shadowMenuAmumu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+                Control.CastSpell(HK_E);
+            end
+            if Ready(_W) and self.shadowMenuAmumu.jungleclear.UseW:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+                Control.CastSpell(HK_W);
+            end
+        end
+    end
+    end
+
+function GetDistanceSqr(p1, p2)
+	if not p1 then return math.huge end
+	p2 = p2 or myHero
+	local dx = p1.x - p2.x
+	local dz = (p1.z or p1.y) - (p2.z or p2.y)
+	return dx*dx + dz*dz
+end
+
+function CountEnemiesNear(pos, range)
+    local pos = pos.pos
+	local count = 0
+	for i = 1, Game.HeroCount() do 
+	local hero = Game.Hero(i)
+	local Range = 350
+		if hero.team ~= TEAM_ALLY and GetDistanceSqr(pos, hero.pos) < Range then
+		count = count + 1
+		end
+	end
+	return count
+end
+
+function Amumu:autor()
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if self.shadowMenuAmumu.autor.autor:Value() then
+        if Ready(_R) and target and IsValid(target) and CountEnemiesNear(target, 350) >= self.shadowMenuAmumu.autor.autormin:Value() then
+            Control.CastSpell(HK_R)
+        end
+    end
+end
+
+function Amumu:killsteal()
+    local QDMG = getdmg("q", target, myHero, 1)
+    local EDMG = getdmg("e", target, myHero, 1)
+    if self.shadowMenuAmumu.killsteal.useq:Value() and QDMG >= target.health then
+        self:CastQ()
+    end
+    if self.shadowMenuAmumu.killsteal.usee:Value() and EDMG >= target.health then
+        Control.CastSpell(HK_E, target)
+    end
+end
+
+function Amumu:CastQ(target)
+    if Ready(_Q) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
 end
