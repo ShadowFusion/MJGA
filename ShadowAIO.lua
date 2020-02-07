@@ -26,7 +26,7 @@ local TargetSelector
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.12
+    local Version = 0.13
     
     local Files = {
         Lua = {
@@ -364,6 +364,7 @@ function LeeSin:LoadMenu()
     self.shadowMenuLee.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
     self.shadowMenuLee:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
     self.shadowMenuLee.killsteal:MenuElement({id = "AutoQ", name = "Auto Q", value = true})
+    self.shadowMenuLee.killsteal:MenuElement({id = "AutoR", name = "Auto R", value = true})
     self.shadowMenuLee:MenuElement({type = MENU, id = "autow", name = "Auto W settings"})
     self.shadowMenuLee.autow:MenuElement({id = "autows", name = "Auto W yourself", value = true})
     self.shadowMenuLee.autow:MenuElement({id = "selfhealth", name = "Min health to auto w self", value = 30, min = 0, max = 100, identifier = "%"})
