@@ -26,7 +26,7 @@ local TargetSelector
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.15
+    local Version = 0.16
     
     local Files = {
         Lua = {
@@ -2111,14 +2111,8 @@ if myHero.charName == "Graves" then
                     
                     
                     function Gragas:Combo()
-                        local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                        local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                        if Ready(_Q) and target and IsValid(target) then
-                            if self.shadowMenu.combo.Q:Value() then
-                                self:CastQ(target)
-                            end
-                        end
                         local target = TargetSelector:GetTarget(self.E.Range, 1)
+                        if target == nil then return end
                         if Ready(_E) and target and IsValid(target) then
                             if self.shadowMenu.combo.E:Value() then
                                 Control.CastSpell(HK_E, target)
@@ -2126,7 +2120,16 @@ if myHero.charName == "Graves" then
                             end
                         end
 
-                        local target = TargetSelector:GetTarget(self.W.Range, 1)
+                        local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+                        local target = TargetSelector:GetTarget(self.Q.Range, 1)
+                        if target == nil then return end
+                        if Ready(_Q) and target and IsValid(target) then
+                            if self.shadowMenu.combo.Q:Value() then
+                                self:CastQ(target)
+                            end
+                        end
+
+                        local target = TargetSelector:GetTarget(self.Q.Range, 1)
                         if Ready(_W) and target and IsValid(target) then
                             if self.shadowMenu.combo.W:Value() then
                                 Control.CastSpell(HK_W)
@@ -2137,7 +2140,7 @@ if myHero.charName == "Graves" then
                         local target = TargetSelector:GetTarget(self.R.Range, 1)
                         if Ready(_R) and target and IsValid(target) then
                             local RDMG = getdmg("R", target, myHero)
-                            print(target.health)
+                            --print(target.health)
                             if self.shadowMenu.combo.R:Value() and target.health < RDMG then
                                 self:CastR(target)
                                 --self:CastSpell(HK_Etarget)
@@ -2145,7 +2148,7 @@ if myHero.charName == "Graves" then
                         end
                     end
                     
-                    function Gragas:jungleclear()
+                function Gragas:jungleclear()
                     if self.shadowMenu.jungleclear.Q:Value() then 
                         for i = 1, Game.MinionCount() do
                             local obj = Game.Minion(i)
@@ -2164,7 +2167,7 @@ if myHero.charName == "Graves" then
                                 end
                             end
                     end
-                    end
+                end
             
                     function Gragas:laneclear()
                         for i = 1, Game.MinionCount() do
@@ -2462,4 +2465,3 @@ if myHero.charName == "Graves" then
                 end
             end
         end
-    end
