@@ -27,7 +27,7 @@ local TargetSelector
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.01
+    local Version = 0.05
     
     local Files = {
         Lua = {
@@ -174,6 +174,26 @@ local function GetStatsByRank(slot1, slot2, slot3, spell)
 	return (({slot1, slot2, slot3})[myHero:GetSpellData(spell).level or 1])
 end
 
+function IsImmobileTarget(unit)
+	for i = 0, unit.buffCount do
+		local buff = unit:GetBuff(i)
+		if buff and (buff.type == 5 or buff.type == 11 or buff.type == 29 or buff.type == 24 or buff.name == "recall") and buff.count > 0 then
+			return true
+		end
+	end
+	return false	
+end
+
+function IsFacing(unit)
+    local V = Vector((unit.pos - myHero.pos))
+    local D = Vector(unit.dir)
+    local Angle = 180 - math.deg(math.acos(V*D/(V:Len()*D:Len())))
+    if math.abs(Angle) < 80 then 
+        return true  
+    end
+    return false
+end
+
 
 local Heroes = {"Jinx"}
 if not table.contains(Heroes, myHero.charName) then return end
@@ -184,7 +204,7 @@ function Jinx:__init()
     self.Q = {Type = _G.SPELLTYPE_CIRCLE, Radius = 150}
     self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {0, 2, 3}}
     self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 900, Radius = 50}
-    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 100000, Radius = 225}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 20000, Radius = 225, Speed = 1500}
 
     
 
@@ -227,6 +247,8 @@ function Jinx:LoadMenu()
     self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
     self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
     self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "EONCC", name = "Auto Use E on CC Targets", value = true, leftIcon = Icons.E})
+
 
      -- JUNGLE KILLSTEAL --
     self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
@@ -237,18 +259,19 @@ function Jinx:LoadMenu()
     self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
     self.shadowMenu.killsteal:MenuElement({id = "killstealw", name = "Kill steal with W", value = true, leftIcon = Icons.W})
     self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealrrange", name = "Range to use Killsteal R", value = 600, min = self.W.Range, max = 5000, identifier = "%"})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealrangemax", name = "Max Distance willing to use R at", value = 0, min = 0, max = 20000})
 
 end
 
+
 function Jinx:Draw()
-    
 end
 
 function Jinx:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
+    self:autoe()
     self:killsteal()
     self:junglekillsteal()
     if orbwalker.Modes[0] then
@@ -257,12 +280,22 @@ function Jinx:Tick()
     end
 end
 
+function Jinx:autoe()
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target and IsValid(target) then
+    if Ready(_E) and self.shadowMenu.combo.E:Value() and self.shadowMenu.combo.EONCC:Value() and IsImmobileTarget(target) then
+        self:CastE(target)
+
+    end
+    end
+end
 function Jinx:killsteal()
     local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if target and IsValid(target) then       
+    if target and IsValid(target) then      
+    local d = myHero.pos:DistanceTo(target.pos)
     local wdmg = getdmg("W", target, myHero)
     local rdmg = getdmg("R", target, myHero)
-        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() then
+        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() and d <= self.shadowMenu.killsteal.killstealrangemax:Value() then
             self:CastR(target)
         end
         if Ready(_W) and target and IsValid(target) and (target.health <= wdmg) and self.shadowMenu.killsteal.killstealw:Value() then
@@ -283,13 +316,16 @@ function Jinx:Combo()
 
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target == nil then return end
-    local posBehind = myHero.pos:Extended(target.pos, target.distance + 200)
-    if Ready(_E) and Ready(_Q) and target and IsValid(target) then
+    local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
+    if Ready(_E) and target and IsValid(target) then
         if self.shadowMenu.combo.E:Value() then
             self:CastE(target)
             --self:CastSpell(HK_Etarget)
         end
     end
+
+
+
     
     local distance = target.pos:DistanceTo(myHero.pos) 
     local target = TargetSelector:GetTarget(self.Q.Range, 1)
@@ -344,9 +380,9 @@ end
 function Jinx:CastE(target)
     if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
             Control.CastSpell(HK_E, Pred.CastPosition)
-            lastQ = GetTickCount()
+            lastE = GetTickCount()
         end
     end
 end
@@ -354,7 +390,7 @@ end
 function Jinx:CastR(target)
     if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
             Control.CastSpell(HK_R, Pred.CastPosition)
             lastR = GetTickCount()
         end
