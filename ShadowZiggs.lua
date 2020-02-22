@@ -1,3 +1,51 @@
+local Heroes = {"Ziggs"}
+
+if not table.contains(Heroes, myHero.charName) then return end
+
+if not FileExist(COMMON_PATH .. "GamsteronPrediction.lua") then
+	print("GsoPred. installed Press 2x F6")
+	DownloadFileAsync("https://raw.githubusercontent.com/gamsteron/GOS-EXT/master/Common/GamsteronPrediction.lua", COMMON_PATH .. "GamsteronPrediction.lua", function() end)
+	while not FileExist(COMMON_PATH .. "GamsteronPrediction.lua") do end
+end
+    
+require('GamsteronPrediction')
+
+
+if not FileExist(COMMON_PATH .. "PussyDamageLib.lua") then
+	print("PussyDamageLib. installed Press 2x F6")
+	DownloadFileAsync("https://raw.githubusercontent.com/Pussykate/GoS/master/PussyDamageLib.lua", COMMON_PATH .. "PussyDamageLib.lua", function() end)
+	while not FileExist(COMMON_PATH .. "PussyDamageLib.lua") do end
+end
+    
+require('PussyDamageLib')
+
+local isLoaded = false
+function TryLoad()
+	if Game.Timer() < 30 then return end
+	isLoaded = true	
+	if table.contains(Heroes, myHero.charName) then
+		_G[myHero.charName]()
+	end	
+end
+
+function OnLoad()
+	Start()
+end
+
+class "Start"
+
+function Start:__init()
+	Callback.Add("Draw", function() self:Draw() end)
+end
+
+function Start:Draw()
+local textPos = myHero.dir	
+	if not isLoaded then
+		TryLoad()
+		Draw.Text("Ziggs Menu appear 30Sec Ingame", 30, textPos.x + 600, textPos.y + 100, Draw.Color(255, 255, 0, 0))
+	return end
+
+end
 
 local GameHeroCount = Game.HeroCount
 local GameHero = Game.Hero
@@ -24,6 +72,7 @@ local Allys = {}
 local orbwalker
 local TargetSelector
 
+
 -- [ AutoUpdate ] --
 do
     
@@ -33,12 +82,12 @@ do
         Lua = {
             Path = SCRIPT_PATH,
             Name = "Ziggs.lua",
-            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/Ziggs.lua"
+            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowZiggs.lua"
         },
         Version = {
             Path = SCRIPT_PATH,
             Name = "Ziggs.version",
-            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/Ziggs.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
+            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowZiggs.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
         }
     }
     
@@ -72,35 +121,6 @@ do
 
 end
 
-local Champions = {
-    ["Ziggs"] = true,
-}
-
---Checking Champion 
-if Champions[myHero.charName] == nil then
-    print('Shadow AIO does not support ' .. myHero.charName) return
-end
-
-
-Callback.Add("Load", function()
-    orbwalker = _G.SDK.Orbwalker
-    TargetSelector = _G.SDK.TargetSelector
-    if FileExist(COMMON_PATH .. "GamsteronPrediction.lua") then
-        require('GamsteronPrediction');
-    else
-        print("Requires GamsteronPrediction please download the file thanks!");
-        return
-    end
-    if not FileExist(COMMON_PATH .. "PussyDamageLib.lua") then
-        print("PussyDamageLib. installed Press 2x F6")
-        DownloadFileAsync("https://raw.githubusercontent.com/Pussykate/GoS/master/PussyDamageLib.lua", COMMON_PATH .. "PussyDamageLib.lua", function() end)
-        while not FileExist(COMMON_PATH .. "PussyDamageLib.lua") do end
-    end
-        
-    require('PussyDamageLib')
-    local _IsHero = _G[myHero.charName]();
-    _IsHero:LoadMenu();
-end)
 
 local function IsValid(unit)
     if (unit
@@ -173,14 +193,14 @@ local function GetStatsByRank(slot1, slot2, slot3, spell)
     local slot3 = 0
 	return (({slot1, slot2, slot3})[myHero:GetSpellData(spell).level or 1])
 end
-
-
-local Heroes = {"Ziggs"}
-if not table.contains(Heroes, myHero.charName) then return end
         
 class "Ziggs"
+
 function Ziggs:__init()
-    
+ 
+	orbwalker = _G.SDK.Orbwalker
+    TargetSelector = _G.SDK.TargetSelector	
+	self:LoadMenu() 
     self.Q = {Type = _G.SPELLTYPE_CIRCLE, Range = 1400, Radius = 75, Speed = 1700}
     self.W = {Type = _G.SPELLTYPE_CIRCLE, Range = 1000, Radius = 325}
     self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 900, Radius = 325}
@@ -240,13 +260,19 @@ function Ziggs:LoadMenu()
     self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use W in Jungle Steal", value = true, leftIcon = Icons.W})
     self.shadowMenu.junglekillsteal:MenuElement({id = "E", name = "Use E in Jungle Steal", value = true, leftIcon = Icons.E})
 
+        -- JUNGLE CLEAR --
+        self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Jungle Clear"})
+        self.shadowMenu.laneclear:MenuElement({id = "UseQLane", name = "Use Q in Jungle Clear", value = true, leftIcon = Icons.Q})
+        self.shadowMenu.laneclear:MenuElement({id = "UseELane", name = "Use E in Jungle Clear", value = true, leftIcon = Icons.E})
+        self.shadowMenu.laneclear:MenuElement({id = "UseWLane", name = "Use W in Jungle Clear", value = true, leftIcon = Icons.W})
+
     -- KILL STEAL --
     self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
     self.shadowMenu.killsteal:MenuElement({id = "killstealq", name = "Kill steal with Q", value = true, leftIcon = Icons.Q})
     self.shadowMenu.killsteal:MenuElement({id = "killsteale", name = "Kill steal with E", value = true, leftIcon = Icons.E})
     self.shadowMenu.killsteal:MenuElement({id = "killstealw", name = "Kill steal with W", value = true, leftIcon = Icons.W})
     self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealamount", name = "Ammount of people in R range to ", value = 600, min = self.W.Range, max = 5000, identifier = "%"})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealamount", name = "Ammount of people in R range to ", value = 600, min = 1000, max = 5000, identifier = "%"})
 
 end
 
@@ -264,6 +290,7 @@ function Ziggs:Tick()
         self:Combo()
     elseif orbwalker.Modes[3] then
         self:jungleclear()
+        self:laneclear()
     end
 end
 
@@ -290,35 +317,35 @@ function Ziggs:killsteal()
 end
 
 function Ziggs:Combo()
-    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
     if target == nil then return end
-    if Ready(_W) and target and IsValid(target) then
-        if self.shadowMenu.combo.W:Value() then
-           self:CastW(target)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.Q:Value() then
+           self:CastQ(target)
             --self:CastSpell(HK_Etarget)
         end														---- you have "end" forget
+    end
+
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then return end
+    local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.combo.W:Value() then
+            Control.CastSpell(HK_W, posBehind)
+            --self:CastSpell(HK_Etarget)
+        end
     end
 
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target == nil then return end
     local posBehind = myHero.pos:Extended(target.pos, target.distance + 200)
-    if Ready(_E) and Ready(_Q) and target and IsValid(target) then
+    if Ready(_E) and target and IsValid(target) then
         if self.shadowMenu.combo.E:Value() then
             self:CastE(target)
             --self:CastSpell(HK_Etarget)
         end
     end
-    
-    local distance = target.pos:DistanceTo(myHero.pos) 
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if target == nil then return end
-    if Ready(_Q) and target and IsValid(target)then
-        if self.shadowMenu.combo.Q:Value() then
-            if distance > 615 and not self:HasSecondQ() or (distance < 615 and self:HasSecondQ()) then
-                Control.CastSpell(HK_Q)
-            end
-        end    
-    end 
+
 end
 
 function Ziggs:junglekillsteal()
@@ -340,6 +367,21 @@ function Ziggs:junglekillsteal()
                         Control.CastSpell(HK_Q, obj);
                     end
                 end
+            end
+        end
+    end
+end
+
+function Ziggs:laneclear()
+    for i = 1, Game.MinionCount() do
+        local minion = Game.Minion(i)
+        if minion.team ~= myHero.team then 
+            local dist = myHero.pos:DistanceTo(minion.pos)
+            if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
+                Control.CastSpell(HK_Q, minion.pos)
+            end
+            if self.shadowMenu.laneclear.UseELane:Value() and Ready(_E) and dist <= self.E.Range then 
+                Control.CastSpell(HK_E, minion.pos)
             end
         end
     end
