@@ -10,15 +10,6 @@ end
     
 require('GamsteronPrediction')
 
-
-if not FileExist(COMMON_PATH .. "PussyDamageLib.lua") then
-	print("PussyDamageLib. installed Press 2x F6")
-	DownloadFileAsync("https://raw.githubusercontent.com/Pussykate/GoS/master/PussyDamageLib.lua", COMMON_PATH .. "PussyDamageLib.lua", function() end)
-	while not FileExist(COMMON_PATH .. "PussyDamageLib.lua") do end
-end
-    
-require('PussyDamageLib')
-
 local isLoaded = false
 function TryLoad()
 	if Game.Timer() < 30 then return end
@@ -74,19 +65,20 @@ local TargetSelector
 
 
 -- [ AutoUpdate ] --
+-- [ AutoUpdate ] --
 do
     
-    local Version = 0.01
+    local Version = 0.16
     
     local Files = {
         Lua = {
             Path = SCRIPT_PATH,
-            Name = "Ziggs.lua",
+            Name = "ShadowAIO.lua",
             Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowZiggs.lua"
         },
         Version = {
             Path = SCRIPT_PATH,
-            Name = "Ziggs.version",
+            Name = "ShadowAIO.version",
             Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowZiggs.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
         }
     }
@@ -171,6 +163,28 @@ local function OnAllyHeroLoad(cb)
         if obj.isAlly then
             cb(obj)
         end
+    end
+end
+
+local function GetCircularAOEPos(points, radius)              ----- This i have for any time become from Ark 
+    local bestPos, count = Vector(0, 0, 0), #points
+    if count == 0 then return nil, 0 end
+    if count == 1 then return points[1], 1 end
+    local inside, furthest, id = 0, 0, 0
+    for i, point in ipairs(points) do
+        bestPos = bestPos + point
+    end
+    bestPos = bestPos / count
+    for i, point in ipairs(points) do
+        local distSqr = GetDistanceSqr(bestPos, point)
+        if distSqr < radius * radius then inside = inside + 1 end
+        if distSqr > furthest then furthest = distSqr; id = i end
+    end
+    if inside == count then
+        return bestPos, count
+    else
+        table.remove(points, id)
+        return GetCircularAOEPos(points, radius)
     end
 end
 
@@ -260,12 +274,6 @@ function Ziggs:LoadMenu()
     self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use W in Jungle Steal", value = true, leftIcon = Icons.W})
     self.shadowMenu.junglekillsteal:MenuElement({id = "E", name = "Use E in Jungle Steal", value = true, leftIcon = Icons.E})
 
-        -- JUNGLE CLEAR --
-        self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Jungle Clear"})
-        self.shadowMenu.laneclear:MenuElement({id = "UseQLane", name = "Use Q in Jungle Clear", value = true, leftIcon = Icons.Q})
-        self.shadowMenu.laneclear:MenuElement({id = "UseELane", name = "Use E in Jungle Clear", value = true, leftIcon = Icons.E})
-        self.shadowMenu.laneclear:MenuElement({id = "UseWLane", name = "Use W in Jungle Clear", value = true, leftIcon = Icons.W})
-
     -- KILL STEAL --
     self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
     self.shadowMenu.killsteal:MenuElement({id = "killstealq", name = "Kill steal with Q", value = true, leftIcon = Icons.Q})
@@ -286,11 +294,11 @@ function Ziggs:Tick()
     end
     self:killsteal()
     self:junglekillsteal()
+    self:CountR()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
         self:jungleclear()
-        self:laneclear()
     end
 end
 
@@ -316,37 +324,49 @@ function Ziggs:killsteal()
     end
 end
 
-function Ziggs:Combo()
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if target == nil then return end
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenu.combo.Q:Value() then
-           self:CastQ(target)
-            --self:CastSpell(HK_Etarget)
-        end														---- you have "end" forget
-    end
+function Ziggs:CountR()                     ----- new function
+    for i, target in pairs(Enemys) do
+		if target and target.pos:DistanceTo(myHero.pos) < self.shadowMenu.killsteal.killstealamount:Value() and IsValid(target) then       
+			local rdmg = getdmg("R", target, myHero)
+			if Ready(_R) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealrcount:Value() then
+				local bestPos, count = GetCircularAOEPos(target.pos, 500)
+				if bestPos and count >= 1 then
+					Control.CastSpell(HK_R, bestPos)
+				end	
+			end
+		end
+	end	
+end
 
+function Ziggs:Combo()
     local target = TargetSelector:GetTarget(self.W.Range, 1)
     if target == nil then return end
-    local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
     if Ready(_W) and target and IsValid(target) then
         if self.shadowMenu.combo.W:Value() then
-            Control.CastSpell(HK_W, posBehind)
+           self:CastW(target)
             --self:CastSpell(HK_Etarget)
-        end
+        end														---- you have "end" forget
     end
 
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target == nil then return end
     local posBehind = myHero.pos:Extended(target.pos, target.distance + 200)
-    if Ready(_E) and target and IsValid(target) then
+    if Ready(_E) and Ready(_Q) and target and IsValid(target) then
         if self.shadowMenu.combo.E:Value() then
             self:CastE(target)
             --self:CastSpell(HK_Etarget)
         end
     end
-
-end
+    
+    local distance = target.pos:DistanceTo(myHero.pos) 
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target)then
+        if self.shadowMenu.combo.Q:Value() then
+                self.CastQ(target)
+            end
+        end    
+    end 
 
 function Ziggs:junglekillsteal()
     if self.shadowMenu.junglekillsteal.W:Value() then 
@@ -367,21 +387,6 @@ function Ziggs:junglekillsteal()
                         Control.CastSpell(HK_Q, obj);
                     end
                 end
-            end
-        end
-    end
-end
-
-function Ziggs:laneclear()
-    for i = 1, Game.MinionCount() do
-        local minion = Game.Minion(i)
-        if minion.team ~= myHero.team then 
-            local dist = myHero.pos:DistanceTo(minion.pos)
-            if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
-                Control.CastSpell(HK_Q, minion.pos)
-            end
-            if self.shadowMenu.laneclear.UseELane:Value() and Ready(_E) and dist <= self.E.Range then 
-                Control.CastSpell(HK_E, minion.pos)
             end
         end
     end
