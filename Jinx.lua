@@ -27,7 +27,7 @@ local TargetSelector
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.05
+    local Version = 0.10
     
     local Files = {
         Lua = {
@@ -90,14 +90,8 @@ Callback.Add("Load", function()
     else
         print("Requires GamsteronPrediction please download the file thanks!");
         return
-    end
-    if not FileExist(COMMON_PATH .. "PussyDamageLib.lua") then
-        print("PussyDamageLib. installed Press 2x F6")
-        DownloadFileAsync("https://raw.githubusercontent.com/Pussykate/GoS/master/PussyDamageLib.lua", COMMON_PATH .. "PussyDamageLib.lua", function() end)
-        while not FileExist(COMMON_PATH .. "PussyDamageLib.lua") do end
-    end
-        
-    require('PussyDamageLib')
+    end 
+    require('damagelib')
     local _IsHero = _G[myHero.charName]();
     _IsHero:LoadMenu();
 end)
@@ -202,9 +196,9 @@ class "Jinx"
 function Jinx:__init()
     
     self.Q = {Type = _G.SPELLTYPE_CIRCLE, Radius = 150}
-    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {0, 2, 3}}
+    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_YASUOWALL, _G.COLLISION_MINION}}
     self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 900, Radius = 50}
-    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 20000, Radius = 225, Speed = 1500}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 20000, Radius = 225, Speed = 1500, Collision = true, MaxCollision = 1, CollisionTypes = {2, 3}}
 
     
 
@@ -261,10 +255,41 @@ function Jinx:LoadMenu()
     self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
     self.shadowMenu.killsteal:MenuElement({id = "killstealrangemax", name = "Max Distance willing to use R at", value = 0, min = 0, max = 20000})
 
+    -- DRAWINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "Drawing", name = "Draw Settings"})
+    self.shadowMenu.Drawing:MenuElement({id = "draww", name = "Draw [W] Range", value = true, leftIcon = Icons.W})
+    self.shadowMenu.Drawing:MenuElement({id = "drawe", name = "Draw [E] Range", value = true, leftIcon = Icons.E})
+    self.shadowMenu.Drawing:MenuElement({id = "drawr", name = "Draw [R] Range", value = true, leftIcon = Icons.R})
+    self.shadowMenu.Drawing:MenuElement({id = "drawrkill", name = "Draw [R] Killable Text", value = true, leftIcon = Icons.R})
+
+
 end
 
 
 function Jinx:Draw()
+
+    if self.shadowMenu.Drawing.drawr:Value() and Ready(_R) then
+		Draw.Circle(myHero, 1500, 1, Draw.Color(255, 0, 0))
+		end                                                 
+		if self.shadowMenu.Drawing.drawe:Value() and Ready(_E) then
+		Draw.Circle(myHero, 900, 1, Draw.Color(235, 147, 52))
+		end
+		if self.shadowMenu.Drawing.draww:Value() and Ready(_W) then
+		Draw.Circle(myHero, 1450, 1, Draw.Color(0, 212, 250))
+        end
+
+        local target = TargetSelector:GetTarget(self.R.Range, 1)
+        if target and IsValid(target) then
+        if Ready(_R) and myHero.pos:DistanceTo(target.pos) <= 6000 and IsValid(target) and self.shadowMenu.Drawing.drawrkill:Value() then	
+            local hp = target.health
+            local RDmg = getdmg("R", target, myHero)
+            if RDmg >= hp then
+                Draw.Text("ULT KILL", 13, target.posMM.x - 15, target.posMM.y - 15, Draw.Color(255,0,0))
+            end
+        end	
+    end
+
+
 end
 
 function Jinx:Tick()
@@ -295,7 +320,7 @@ function Jinx:killsteal()
     local d = myHero.pos:DistanceTo(target.pos)
     local wdmg = getdmg("W", target, myHero)
     local rdmg = getdmg("R", target, myHero)
-        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() and d <= self.shadowMenu.killsteal.killstealrangemax:Value() then
+        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() and d > 500 and d < self.shadowMenu.killsteal.killstealrangemax:Value() then
             self:CastR(target)
         end
         if Ready(_W) and target and IsValid(target) and (target.health <= wdmg) and self.shadowMenu.killsteal.killstealw:Value() then
@@ -370,7 +395,7 @@ end
 function Jinx:CastW(target)
     if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.W, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
             Control.CastSpell(HK_W, Pred.CastPosition)
             lastW = GetTickCount()
         end
@@ -390,7 +415,7 @@ end
 function Jinx:CastR(target)
     if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
             Control.CastSpell(HK_R, Pred.CastPosition)
             lastR = GetTickCount()
         end
