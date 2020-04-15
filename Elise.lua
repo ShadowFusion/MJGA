@@ -195,11 +195,12 @@ if not table.contains(Heroes, myHero.charName) then return end
 class "Elise"
 function Elise:__init()
     
-    self.Q = {Type = _G.SPELLTYPE_CIRCLE, Radius = 150}
-    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {0, 2, 3}}
-    self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 900, Radius = 50}
-    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 20000, Radius = 225, Speed = 1500}
+    self.QH = {Type = _G.SPELLTYPE_CIRCLE, Range = 625, Radius = 0, Speed = 2200, Collision = false}
+    self.WH = {Type = _G.SPELLTYPE_LINE, Range = 950, Radius = 100, Speed = 5000, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL, _G.COLLISION_ENEMY}}
+    self.EH = {Type = _G.SPELLTYPE_LINE, Range = 1075, Radius = 55, Speed = 1600, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL, _G.COLLISION_ENEMY}}
 
+    self.QS = {Type = _G.SPELLTYPE_CIRCLE, Range = 475, Radius = 0, Speed = 20, Collision = false}
+    self.ES = {Type = _G.SPELLTYPE_LINE, Range = 750, Radius = 0, Speed = 20}
     
 
     OnAllyHeroLoad(function(hero)
@@ -224,11 +225,11 @@ function Elise:__init()
 end
 
 local Icons = {
-    ["EliseIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/65/Elise_OriginalSquare.png",
-    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4d/Pow-Pow.png",
-    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/76/Zap%21.png",
-    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/bb/Flame_Chompers%21.png",
-    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/a8/Super_Mega_Death_Rocket%21.png",
+    ["EliseIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/1/1b/Elise_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/2b/Neurotoxin.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/60/Volatile_Spiderling.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/0/02/Cocoon.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/2b/Spider_Form.png",
     ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
     }
 
@@ -238,10 +239,8 @@ function Elise:LoadMenu()
 
     -- COMBO --
     self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
-    self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
-    self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
-    self.shadowMenu.combo:MenuElement({id = "EONCC", name = "Auto Use E on CC Targets", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "combo1", name = "Use Human E > W > Q > Spider E > Q > W", value = true})
+    self.shadowMenu.combo:MenuElement({id = "combor", name = "Switch to R manually after human combo done?", value = true})
 
 
      -- JUNGLE KILLSTEAL --
@@ -265,72 +264,75 @@ function Elise:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
-    self:autoe()
-    self:killsteal()
-    self:junglekillsteal()
+    --self:junglekillsteal()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
     end
 end
 
-function Elise:autoe()
-    local target = TargetSelector:GetTarget(self.E.Range, 1)
-    if target and IsValid(target) then
-    if Ready(_E) and self.shadowMenu.combo.E:Value() and self.shadowMenu.combo.EONCC:Value() and IsImmobileTarget(target) then
-        self:CastE(target)
-
-    end
-    end
-end
-function Elise:killsteal()
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if target and IsValid(target) then      
-    local d = myHero.pos:DistanceTo(target.pos)
-    local wdmg = getdmg("W", target, myHero)
-    local rdmg = getdmg("R", target, myHero)
-        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() and d <= self.shadowMenu.killsteal.killstealrangemax:Value() then
-            self:CastR(target)
-        end
-        if Ready(_W) and target and IsValid(target) and (target.health <= wdmg) and self.shadowMenu.killsteal.killstealw:Value() then
-            self:CastW(target)
-        end
-    end
-end
 
 function Elise:Combo()
-    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    local target = TargetSelector:GetTarget(self.EH.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_E).name == "EliseHumanE") then
+           self:CastEH(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.WH.Range, 1)
     if target == nil then return end
     if Ready(_W) and target and IsValid(target) then
-        if self.shadowMenu.combo.W:Value() then
-           self:CastW(target)
-            --self:CastSpell(HK_Etarget)
-        end														---- you have "end" forget
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_W).name == "EliseHumanW") then
+           self:CastWH(target)
+        end														
     end
 
-    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    local target = TargetSelector:GetTarget(self.QH.Range, 1)
     if target == nil then return end
-    local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenu.combo.E:Value() then
-            self:CastE(target)
-            --self:CastSpell(HK_Etarget)
-        end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_Q).name == "EliseHumanQ") then
+           Control.CastSpell(HK_Q, target)
+        end														
     end
 
+    if Ready(_R) then
+        if self.shadowMenu.combo.combor:Value() and (myHero:GetSpellData(_R).name == "EliseR") then
+            Control.KeyDown(HK_R)
+        end
+    end 
 
+ -- SPIDER --
+
+    local target = TargetSelector:GetTarget(self.ES.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_E).name == "EliseSpiderEInitial") then
+            Control.KeyDown(HK_E)
+            Control.CastSpell(HK_E, target)
+        end														
+    end
 
     
-    local distance = target.pos:DistanceTo(myHero.pos) 
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    local target = TargetSelector:GetTarget(self.QS.Range, 1)
     if target == nil then return end
-    if Ready(_Q) and target and IsValid(target)then
-        if self.shadowMenu.combo.Q:Value() then
-            if distance > 615 and not self:HasSecondQ() or (distance < 615 and self:HasSecondQ()) then
-                Control.CastSpell(HK_Q)
-            end
-        end    
-    end 
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_Q).name == "EliseSpiderQCast") then
+            Control.CastSpell(HK_Q, target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.QS.Range, 1)
+    if target == nil then return end
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_W).name == "EliseSpiderW") then
+            Control.KeyDown(HK_W)
+        end														
+    end
+
+
+
 end
 
 function Elise:junglekillsteal()
@@ -361,9 +363,9 @@ function Elise:GotBuff(unit, buffname)
     return 0
 end
 
-function Elise:CastW(target)
+function Elise:CastWH(target)
     if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.W, myHero)
+        local Pred = GamsteronPrediction:GetPrediction(target, self.WH, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
             Control.CastSpell(HK_W, Pred.CastPosition)
             lastW = GetTickCount()
@@ -371,10 +373,33 @@ function Elise:CastW(target)
     end
 end
 
-function Elise:CastE(target)
+-- HUMAN CASTS --
+function Elise:CastEH(target)
     if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        local Pred = GamsteronPrediction:GetPrediction(target, self.EH, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
+end
+
+function Elise:CastWS(target)
+    if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.WS, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_W, Pred.CastPosition)
+            lastW = GetTickCount()
+        end
+    end
+end
+
+
+-- SPIDER CASTS --
+function Elise:CastES(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.ES, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
             Control.CastSpell(HK_E, Pred.CastPosition)
             lastE = GetTickCount()
         end
