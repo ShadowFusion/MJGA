@@ -27,7 +27,7 @@ local TargetSelector
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.05
+    local Version = 0.1
     
     local Files = {
         Lua = {
@@ -209,8 +209,7 @@ function Elise:__init()
     
     OnEnemyHeroLoad(function(hero)
         Enemys[hero.networkID] = hero
-    end)
-                                      --- you need Load here your Menu        
+    end)    
     Callback.Add("Tick", function() self:Tick() end)
     Callback.Add("Draw", function() self:Draw() end)
     
@@ -242,22 +241,62 @@ function Elise:LoadMenu()
     self.shadowMenu.combo:MenuElement({id = "combo1", name = "Use Human E > W > Q > Spider E > Q > W", value = true})
     self.shadowMenu.combo:MenuElement({id = "combor", name = "Switch to R manually after human combo done?", value = true})
 
+    -- Auto Stun --
+    self.shadowMenu:MenuElement({type = MENU, id = "autostun", name = "Auto Stun Setting"})
+    self.shadowMenu.autostun:MenuElement({id = "useautostun", name = "Use auto stun?", value = true})
+    self.shadowMenu.autostun:MenuElement({id = "changeform", name = "Automatically change from spdier form?", value = true})
+
+    -- Manual Stun --
+    self.shadowMenu:MenuElement({type = MENU, id = "manualstun", name = "Manual Stun Setting"})
+    self.shadowMenu.manualstun:MenuElement({id = "usemanualstun", name = "Use manual stun?", value = true})
+
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "combo1", name = "Use Human E > W > Q > Spider E > Q > W", value = true})
 
      -- JUNGLE KILLSTEAL --
     self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
     self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use W in Jungle Steal", value = true, leftIcon = Icons.W})
 
-
-    -- KILL STEAL --
-    self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealw", name = "Kill steal with W", value = true, leftIcon = Icons.W})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealrangemax", name = "Max Distance willing to use R at", value = 0, min = 0, max = 20000})
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoE", name = "Draw if auto [E] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoForm", name = "Draw if auto [R] is on with Auto stun", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawManualE", name = "Draw if manual [E] is on", value = true})
 
 end
 
 
 function Elise:Draw()
+
+    if self.shadowMenu.drawings.drawAutoE:Value() then
+        Draw.Text("Auto Use E: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autostun.useautostun:Value() then
+                Draw.Text("ON", 18, 285, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 285, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoForm:Value() then
+        Draw.Text("Auto Use R if can stun: ", 18, 200, 55, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autostun.changeform:Value() then
+                Draw.Text("ON", 18, 365, 55, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 365, 55, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawManualE:Value() then
+        Draw.Text("Manual E with Harass Key: ", 18, 200, 80, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.manualstun.usemanualstun:Value() then
+                Draw.Text("ON", 18, 390, 80, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 390, 80, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
 end
 
 function Elise:Tick()
@@ -265,10 +304,71 @@ function Elise:Tick()
         return
     end
     --self:junglekillsteal()
+        self:autostun()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        self:manualstun()
     end
+end
+
+function Elise:autostun()
+    local target = TargetSelector:GetTarget(self.EH.Range, 1)
+    if target and IsValid(target) then
+    local d = myHero.pos:DistanceTo(target.pos)
+    if Ready(_R) and self.shadowMenu.autostun.changeform:Value() and self.shadowMenu.autostun.useautostun:Value() and (myHero:GetSpellData(_Q).name == "EliseSpiderQCast")then
+        Control.CastSpell(HK_R)
+    end
+    if Ready(_E) and self.shadowMenu.autostun.useautostun:Value() and self.shadowMenu.autostun.changeform:Value() and d < 1075 then
+        self:CastEH(target)
+    end
+    end
+
+end
+
+function Elise:manualstun()
+    local target = TargetSelector:GetTarget(self.EH.Range, 1)
+    if target and IsValid(target) then
+    local d = myHero.pos:DistanceTo(target.pos)
+    if Ready(_E) and self.shadowMenu.manualstun.usemanualstun:Value() and d < 1075 then
+        self:CastEH(target)
+    end
+    end
+end
+
+function Elise:jungleclear()
+
+   -- if (myHero:GetSpellData(_R).name == "EliseRSpider") 
+
+    if self.shadowMenu.jungleclear.combo1:Value() then 
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_E) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.EH.Range) then
+                        Control.CastSpell(HK_E, obj);
+                    end
+                    if Ready(_W) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.WH.Range) then
+                        Control.CastSpell(HK_W, obj);
+                    end
+                    if Ready(_Q) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.QH.Range) then
+                        Control.CastSpell(HK_Q, obj);
+                    end
+                    if Ready(_R) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.QH.Range) then
+                        Control.CastSpell(HK_R);
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.ES.Range) then
+                        Control.CastSpell(HK_E);
+                        Control.CastSpell(HK_E, target);
+                    end
+                end
+            end
+            
+        end
+    end
+
 end
 
 
@@ -283,6 +383,7 @@ function Elise:Combo()
 
     local target = TargetSelector:GetTarget(self.WH.Range, 1)
     if target == nil then return end
+    local d = myHero.pos:DistanceTo(target.pos)
     if Ready(_W) and target and IsValid(target) then
         if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_W).name == "EliseHumanW") then
            self:CastWH(target)
@@ -349,10 +450,6 @@ function Elise:junglekillsteal()
             end
         end
     end
-end
-
-function Elise:HasSecondQ()
-    return Elise:GotBuff(myHero, "EliseQ") > 0
 end
 
 function Elise:GotBuff(unit, buffname)
