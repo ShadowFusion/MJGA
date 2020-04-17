@@ -26,18 +26,18 @@
     -- [ AutoUpdate ] --
     do
         
-        local Version = 0.2
+        local Version = 0.3
         
         local Files = {
             Lua = {
                 Path = SCRIPT_PATH,
                 Name = "ShadowAIO.lua",
-                Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIO.lua"
+                Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIOSupport.lua"
             },
             Version = {
                 Path = SCRIPT_PATH,
                 Name = "ShadowAIO.version",
-                Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIO.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
+                Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIOSupport.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
             }
         }
         
@@ -76,6 +76,8 @@
         ["Nami"] = true,
         ["Sona"] = true,
         ["Braum"] = true,
+        ["Taric"] = true,
+        ["Leona"] = true,
     }
 
     --Checking Champion 
@@ -1071,7 +1073,6 @@ end
     function Braum:AutoR()
     local target = TargetSelector:GetTarget(self.R.Range, 1)
         if target and IsValid(target) then
-            print(CollisionObjects)
             if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
                 self:CastR(target)
             end
@@ -1092,6 +1093,220 @@ end
 
     
     function Braum:CastR(target)
+        if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+            local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+            if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+                Control.CastSpell(HK_R, Pred.CastPosition)
+                lastR = GetTickCount()
+            end
+        end
+    end
+    end
+--[[
+    _   _   _   _   _  
+    / \ / \ / \ / \ / \ 
+   ( T | A | R | I | C )
+    \_/ \_/ \_/ \_/ \_/ 
+]]
+
+if myHero.charName == "Leona" then
+    class "Leona"
+    function Leona:__init()
+        
+        self.Q = {Type = _G.SPELLTYPE_CIRCLE, Range = 100}
+        self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 3, Range = 450, Speed = 828.5}
+        self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 1200, Speed = 20}
+        self.R = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 80, Range = 1250, Speed = 1200, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_YASUOWALL}}
+        
+
+        OnAllyHeroLoad(function(hero)
+            Allys[hero.networkID] = hero
+        end)
+        
+        OnEnemyHeroLoad(function(hero)
+            Enemys[hero.networkID] = hero
+        end)
+        
+        Callback.Add("Tick", function() self:Tick() end)
+        Callback.Add("Draw", function() self:Draw() end)
+        
+        orbwalker:OnPreMovement(
+            function(args)
+                if lastMove + 180 > GetTickCount() then
+                    args.Process = false
+                else
+                    args.Process = true
+                    lastMove = GetTickCount()
+                end
+            end
+        )
+    end
+    
+    local Icons = {
+        ["LeonaIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/ba/Leona_OriginalSquare.png",
+        ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c6/Shield_of_Daybreak.png",
+        ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c5/Eclipse.png",
+        ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/91/Zenith_Blade.png",
+        ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/5/5c/Solar_Flare.png",
+        ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+        ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+        }
+
+
+    function Leona:LoadMenu()
+        self.shadowMenu = MenuElement({type = MENU, id = "shadowLeona", name = "Shadow Leona", leftIcon = Icons.LeonaIcon})
+
+        -- COMBO --
+        self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+        self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+        self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = false, leftIcon = Icons.W})
+        self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+        self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+        self.shadowMenu.combo:MenuElement({id = "userammount", name = "Activate [R] when x enemies hit", value = 1, min = 1, max = 5, identifier = "#"})
+
+        -- AUTO R --
+        self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+        self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+        self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies hit", value = 1, min = 1, max = 5, identifier = "#"})
+
+
+        -- DRAWING SETTINGS --
+        self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+        self.shadowMenu.drawings:MenuElement({id = "drawAutoR", name = "Draw if auto [R] is on", value = true})
+
+
+        -- SUMMONER SETTINGS --
+        self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+        if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+            self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+        elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+            self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+        end
+
+        if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+            self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+        elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+            self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+        end
+
+    end
+
+    
+    function Leona:Draw()
+        
+        if self.shadowMenu.drawings.drawAutoR:Value() then
+			Draw.Text("Auto Cast R: ", 15, 5, 30, Draw.Color(255, 225, 255, 0))
+                if self.shadowMenu.autor.useautor:Value() then
+				    Draw.Text("ON", 15, 85, 30, Draw.Color(255, 0, 255, 0))
+			        else
+				        Draw.Text("OFF", 15, 85, 30, Draw.Color(255, 255, 0, 0))
+			    end 
+        end
+        
+    end
+    
+    function Leona:Tick()
+        if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+            return
+        end
+        self:AutoR()
+        self:AutoSummoners()
+        if orbwalker.Modes[0] then
+            self:Combo()
+        elseif orbwalker.Modes[3] then
+        end
+    end
+    
+    
+    function Leona:AutoSummoners()
+
+        -- IGNITE --
+        local target = TargetSelector:GetTarget(self.Q.Range, 1)
+        if target and IsValid(target) then
+        local ignDmg = getdmg("IGNITE", target, myHero)
+        if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_1, target)
+        elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_2, target)
+        end
+    end
+
+
+    end
+    function Leona:Combo()
+        local EPred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        local target = TargetSelector:GetTarget(self.E.Range, 1)
+        if Ready(_E) and target and IsValid(target) then
+            if self.shadowMenu.combo.E:Value() then
+                self:CastE(target)
+            end
+        end
+        local target = TargetSelector:GetTarget(self.Q.Range, 1)
+        if Ready(_Q) and target and IsValid(target) then
+            if self.shadowMenu.combo.Q:Value() then
+                Control.KeyDown(HK_Q)
+            end
+        end
+        
+        local target = TargetSelector:GetTarget(self.W.Range, 1)
+        if Ready(_W) and target and IsValid(target) then
+            if self.shadowMenu.combo.W:Value() then
+                Control.CastSpell(HK_W)
+                --self:CastSpell(HK_Etarget)
+            end
+        end
+
+        local target = TargetSelector:GetTarget(self.R.Range, 1)
+        if target and IsValid(target) then
+            if self.shadowMenu.combo.R:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.combo.userammount:Value() and Ready(_R) then
+                self:CastR(target)
+            end
+        end
+    
+    end
+    
+    function Leona:jungleclear()
+    if self.shadowMenu.jungleclear.UseQ:Value() then 
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
+                        Control.CastSpell(HK_Q, obj);
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                        Control.CastSpell(HK_E);
+                    end
+                    if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                        Control.KeyDown(HK_W);
+                    end
+                end
+                end
+            end
+    end
+    end
+
+    function Leona:AutoR()
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+        if target and IsValid(target) then
+            if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
+                self:CastR(target)
+            end
+        end
+    end
+
+    function Leona:CastE(target)
+        if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+            local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+            if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+                Control.CastSpell(HK_E, Pred.CastPosition)
+                lastE = GetTickCount()
+            end
+        end
+    end
+
+
+    function Leona:CastR(target)
         if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
             local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
             if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
