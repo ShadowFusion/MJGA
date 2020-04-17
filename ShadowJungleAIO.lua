@@ -73,6 +73,7 @@ end
 
 local Champions = {
     ["MasterYi"] = true,
+    ["LeeSin"] = true,
 }
 
 --Checking Champion 
@@ -188,213 +189,378 @@ local function GetStatsByRank(slot1, slot2, slot3, spell)
     return (({slot1, slot2, slot3})[myHero:GetSpellData(spell).level or 1])
 end
 
+
+
 --[[
-_   _   _   _   _   _   _   _   _   _  
-/ \ / \ / \ / \ / \ / \ / \ / \ / \ / \ 
-( B | L | I | T | Z | C | R | A | N | K )
-\_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ 
+   _   _   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ / \ / \ 
+ ( M | a | s | t | e | r | Y | i )
+  \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/  
                                                                     
 ]]
-
-        if myHero.charName == "MasterYi" then
-            class "MasterYi"
-            function MasterYi:__init()
-                
-                self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 140, Range = 1150, Speed = 1800, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO, _G.COLLISION_YASUOWALL}}
-                self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 600, Range = 600, Speed = 0, Collision = false}
-                
-
-                OnAllyHeroLoad(function(hero)
-                    Allys[hero.networkID] = hero
-                end)
-                
-                OnEnemyHeroLoad(function(hero)
-                    Enemys[hero.networkID] = hero
-                end)
-                
-                Callback.Add("Tick", function() self:Tick() end)
-                Callback.Add("Draw", function() self:Draw() end)
-                
-                orbwalker:OnPreMovement(
-                    function(args)
-                        if lastMove + 180 > GetTickCount() then
-                            args.Process = false
-                        else
-                            args.Process = true
-                            lastMove = GetTickCount()
-                        end
-                    end
-                )
-            end
-            
-            local Icons = {
-                ["BlitzIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ac/MasterYi_OriginalSquare.png",
-                ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e2/Rocket_Grab.png",
-                ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ab/Overdrive.png",
-                ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/98/Power_Fist.png",
-                ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/a6/Static_Field.png",
-                ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
-                ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
-                }
-
-
-            function MasterYi:LoadMenu()
-                self.shadowMenu = MenuElement({type = MENU, id = "shadowMasterYi", name = "Shadow MasterYi", leftIcon = Icons.BlitzIcon})
-
-                -- COMBO --
-                self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-                self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
-                self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
-                self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
-                self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
-
-                -- AUTO R --
-                self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
-                self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
-                self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies around", value = 1, min = 1, max = 5, identifier = "#"})
-
-                -- SUMMONER SETTINGS --
-                self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
-
-                if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
-                    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
-                elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
-                    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
-                end
-
-                
-                if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
-                    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
-                elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
-                    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
-                end
-
-            end
-
-            
-            function MasterYi:Draw()
-                
-            end
-            
-            function MasterYi:Tick()
-                if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-                    return
-                end
-                self:AutoR()
-                self:AutoSummoners()
-                if orbwalker.Modes[0] then
-                    self:Combo()
-                elseif orbwalker.Modes[3] then
-                end
-            end
-            
-            
-            function MasterYi:AutoSummoners()
-
-                -- IGNITE --
-                local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                if target and IsValid(target) then
-                local ignDmg = getdmg("IGNITE", target, myHero)
-                if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
-                    Control.CastSpell(HK_SUMMONER_1, target)
-                elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
-                    Control.CastSpell(HK_SUMMONER_2, target)
-                end
-
+local Heroes = {"MasterYi"}
+if not table.contains(Heroes, myHero.charName) then return end
+        
+class "MasterYi"
+function MasterYi:__init()
     
-            end
-
-
-            end
-            function MasterYi:Combo()
-                local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                if Ready(_Q) and target and IsValid(target) then
-                    if self.shadowMenu.combo.Q:Value() then
-                        self:CastQ(target)
-                    end
-                end
-                local target = TargetSelector:GetTarget(2000, 1)
-                if Ready(_W) and target and IsValid(target) then
-                    local d = myHero.pos:DistanceTo(target.pos)
-                    if self.shadowMenu.combo.W:Value() and d >= 1150 then
-                        Control.KeyDown(HK_W)
-                    end
-                end
-                
-                local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                if Ready(_E) and target and IsValid(target) then
-                    if self.shadowMenu.combo.E:Value() then
-                        Control.CastSpell(HK_E)
-                        --self:CastSpell(HK_Etarget)
-                    end
-                end
-            
-            end
-            
-            function MasterYi:jungleclear()
-            if self.shadowMenu.jungleclear.UseQ:Value() then 
-                for i = 1, Game.MinionCount() do
-                    local obj = Game.Minion(i)
-                    if obj.team ~= myHero.team then
-                        if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                            if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
-                                Control.CastSpell(HK_Q, obj);
-                            end
-                            if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                Control.CastSpell(HK_E);
-                            end
-                            if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                Control.KeyDown(HK_W);
-                            end
-                        end
-                        end
-                    end
-            end
-            end
-
-            function MasterYi:AutoR()
-
-            local target = TargetSelector:GetTarget(self.R.Range, 1)
-                if target and IsValid(target) then
-                    if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 600) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
-                        Control.CastSpell(HK_R)
-                    end
-                end
-            end
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 0, Range = 600, Speed = 4000, Collision = false}
     
-            function MasterYi:laneclear()
-                for i = 1, Game.MinionCount() do
-                    local minion = Game.Minion(i)
-                    if minion.team ~= myHero.team then 
-                        local dist = myHero.pos:DistanceTo(minion.pos)
-                        if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
-                            Control.CastSpell(HK_Q, minion.pos)
-                        end
-    
-                    end
-                end
-            end
-            
-            function MasterYi:CastQ(target)
-                if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-                    local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                    if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-                        Control.CastSpell(HK_Q, Pred.CastPosition)
-                        lastQ = GetTickCount()
-                    end
-                end
-            end
 
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
     
-            
-            function MasterYi:CastR(target)
-                if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-                    local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                        Control.CastSpell(HK_R, Pred.CastPosition)
-                        lastR = GetTickCount()
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end)
+end
+
+local Icons = {
+    ["MasterYiIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/73/Master_Yi_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e6/Alpha_Strike.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/61/Meditate.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/74/Wuju_Style.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/3/34/Highlander.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+function MasterYi:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowMasterYi", name = "Shadow MasterYi", leftIcon = Icons["MasterYiIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+    self.shadowMenu.combo:MenuElement({id = "userrange", name = "Use [R] only if out of [Q] range?", value = true, leftIcon = Icons.R})
+
+    -- AUTO W --
+    self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W"})
+    self.shadowMenu.autow:MenuElement({id = "usew", name = "Use [W] automatically", value = true, leftIcon = Icons.W})
+    self.shadowMenu.autow:MenuElement({id = "usewhealth", name = "Min health to auto [W]", value = 30, min = 0, max = 100, identifier = "%"})
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoW", name = "Draw if auto [W] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawRSettings", name = "Draw if only [R] on combo if out of [Q] range is on", value = true})
+
+end
+
+
+function MasterYi:Draw()
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Auto Use W: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autow.usew:Value() then
+                Draw.Text("ON", 18, 290, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 290, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Use [R] if out of range: ", 18, 200, 60, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.combo.userrange:Value() then
+                Draw.Text("ON", 18, 370, 60, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 60, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+end
+
+function MasterYi:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    self:autoW()
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        
+    end
+end
+
+function MasterYi:autoW()
+  	
+        if self.shadowMenu.autow.usew:Value() and Ready(_W) then
+            if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
+                Control.CastSpell(HK_W)
+            end
+        end
+
+end
+
+function MasterYi:jungleclear()
+
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_Q, obj)
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_E);
                     end
                 end
             end
+            
+        end
+
+end
+
+
+function MasterYi:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.useq:Value() then
+           self:CastQ(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.usee:Value() then
+           Control.CastSpell(HK_E)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+        if Ready(_R) and target and IsValid(target) then
+            if self.shadowMenu.combo.user:Value() then
+                Control.CastSpell(HK_R)
             end
+        end   
+
+end
+
+
+function MasterYi:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
+end
+
+function MasterYi:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
+--[[
+   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ 
+ ( L | e | e | S | i | n )
+  \_/ \_/ \_/ \_/ \_/ \_/ 
+
+--]]
+
+local Heroes = {"LeeSin"}
+if not table.contains(Heroes, myHero.charName) then return end
+        
+class "LeeSin"
+function LeeSin:__init()
+    
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 0, Range = 600, Speed = 4000, Collision = false}
+    
+
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end)
+end
+
+local Icons = {
+    ["LeeSinIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/1/16/Lee_Sin_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/74/Sonic_Wave.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f1/Safeguard.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/bb/Tempest.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/aa/Dragon%27s_Rage.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+function LeeSin:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowLeeSin", name = "Shadow LeeSin", leftIcon = Icons["LeeSinIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+    self.shadowMenu.combo:MenuElement({id = "userrange", name = "Use [R] only if out of [Q] range?", value = true, leftIcon = Icons.R})
+
+    -- AUTO W --
+    self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W"})
+    self.shadowMenu.autow:MenuElement({id = "usew", name = "Use [W] automatically", value = true, leftIcon = Icons.W})
+    self.shadowMenu.autow:MenuElement({id = "usewhealth", name = "Min health to auto [W]", value = 30, min = 0, max = 100, identifier = "%"})
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoW", name = "Draw if auto [W] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawRSettings", name = "Draw if only [R] on combo if out of [Q] range is on", value = true})
+
+end
+
+
+function LeeSin:Draw()
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Auto Use W: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autow.usew:Value() then
+                Draw.Text("ON", 18, 290, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 290, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Use [R] if out of range: ", 18, 200, 60, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.combo.userrange:Value() then
+                Draw.Text("ON", 18, 370, 60, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 60, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+end
+
+function LeeSin:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    self:autoW()
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        
+    end
+end
+
+function LeeSin:autoW()
+  	
+        if self.shadowMenu.autow.usew:Value() and Ready(_W) then
+            if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
+                Control.CastSpell(HK_W)
+            end
+        end
+
+end
+
+function LeeSin:jungleclear()
+
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_Q, obj)
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_E);
+                    end
+                end
+            end
+            
+        end
+
+end
+
+
+function LeeSin:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.useq:Value() then
+           self:CastQ(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.usee:Value() then
+           Control.CastSpell(HK_E)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+        if Ready(_R) and target and IsValid(target) then
+            if self.shadowMenu.combo.user:Value() then
+                Control.CastSpell(HK_R)
+            end
+        end   
+
+end
+
+
+function LeeSin:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
+end
+
+function LeeSin:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
