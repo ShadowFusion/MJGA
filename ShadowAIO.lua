@@ -34,7 +34,7 @@ local ItemHotKey = {[ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2,[ITEM_3] = HK_ITE
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.1
+    local Version = 0.2
     
     local Files = {
         Lua = {
