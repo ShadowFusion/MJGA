@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------
 
-local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona"}								
+local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona", "DrMundo"}								
 
 if not table.contains(Heroes, myHero.charName) then                 -- < ----- On first lines you must check your supported Champs,,,
 	print('Shadow AIO does not support ' .. myHero.charName)				-- otherwise all functions will be loaded until the first champ check although no champ is supported
@@ -449,7 +449,6 @@ function LeeSin:LoadMenu()
     self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
     self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
     self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
-    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
 
     -- AUTO W --
     self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W"})
@@ -952,6 +951,226 @@ function Elise:CastR(target)
         end
     end
 end
+
+--[[
+   _   _   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ / \ / \ 
+ ( D | r | . | M | u | n | d | o )
+  \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ 
+]]
+class "DrMundo"
+function DrMundo:__init()
+    
+    self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 60, Range = 975, Speed = 1850, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO, _G.COLLISION_YASUOWALL}}
+    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 162.5, Range = 800, Speed = 0}
+    
+
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end)
+end
+
+local Icons = {
+    ["DrMundoIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c3/Dr._Mundo_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f2/Infected_Cleaver.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/5/5d/Burning_Agony.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/95/Masochism.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/8/81/Sadism.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+function DrMundo:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowDrMundo", name = "Shadow DrMundo", leftIcon = Icons["DrMundoIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "usew", name = "Use [W] in combo", value = true, leftIcon = Icons.W})
+    self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+    self.shadowMenu.combo:MenuElement({id = "userhp", name = "Minimum HP to use [R]", value = 30, min = 0, max = 100, identifier = "%"})
+
+    -- AUTO Q --
+    self.shadowMenu:MenuElement({type = MENU, id = "autoq", name = "Auto Q"})
+    self.shadowMenu.autow:MenuElement({id = "useq", name = "Use [Q] automatically", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.autoq:MenuElement({id = "useqmanual", name = "Use [Q] on keydown", key = string.byte("T"), value = true})
+
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoQ", name = "Draw if auto [Q] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawManualQ", name = "Draw if manual [Q] is on", value = true})
+
+end
+
+
+function DrMundo:Draw()
+
+    if self.shadowMenu.drawings.drawAutoQ:Value() then
+        Draw.Text("Auto Use Q: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autoq.useq:Value() then
+                Draw.Text("ON", 18, 370, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+end
+
+function DrMundo:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    self:autoW()
+    self:autoR()
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        
+    end
+end
+
+
+function DrMundo:autoQ()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target and IsValid(target) then
+        if self.shadowMenu.autoq.useq:Value() and Ready(_Q) then
+            if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
+                self:CastQ(target)
+            end
+        end
+    end
+end
+
+function DrMundo:autoR()
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target and IsValid(target)then
+        local rdmg = getdmg("R", target, myHero)
+        if self.shadowMenu.autor.user:Value() and Ready(_R) then
+            if self.shadowMenu.autor.useronks:Value() and rdmg > target.health then
+                self:CastR(target)
+            end
+        end
+    end
+end
+
+function DrMundo:jungleclear()
+
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_Q, obj)
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.E.Range) then
+                        Control.CastSpell(HK_E);
+                    end
+                end
+            end
+            
+        end
+
+end
+
+
+function DrMundo:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.useq:Value() then
+           self:CastQ(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.usee:Value() then
+           self:CastE(target)
+        end														
+    end
+
+
+end
+
+
+function DrMundo:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
+end
+
+function DrMundo:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
+function DrMundo:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+function DrMundo:CastE(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 --[[-------------------------------------------------------------------------------------------------------------------------
 _   _   _              
 / \ / \ / \             
