@@ -1,3 +1,11 @@
+----------------------------------------------------------------------
+
+local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona"}								
+
+if not table.contains(Heroes, myHero.charName) then                 -- < ----- On first lines you must check your supported Champs,,,
+	print('Shadow AIO does not support ' .. myHero.charName)				-- otherwise all functions will be loaded until the first champ check although no champ is supported
+return end
+----------------------------------------------------------------------
 local GameHeroCount = Game.HeroCount
 local GameHero = Game.Hero
 
@@ -22,11 +30,11 @@ local Allys = {}
 
 local orbwalker
 local TargetSelector
-
+local ItemHotKey = {[ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2,[ITEM_3] = HK_ITEM_3, [ITEM_4] = HK_ITEM_4, [ITEM_5] = HK_ITEM_5, [ITEM_6] = HK_ITEM_6, [ITEM_7] = HK_ITEM_7,}
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.16
+    local Version = 0.1
     
     local Files = {
         Lua = {
@@ -71,29 +79,6 @@ do
 
 end
 
-local Champions = {
-    ["Urgot"] = true, 
-    ["LeeSin"] = true, 
-    ["MasterYi"] = true, 
-    ["Warwick"] = true, 
-    ["Hecarim"] = true, 
-    ["Jax"] = true,
-    ["Amumu"] = true,
-    ["Cassiopeia"] = true,
-    ["Nocturne"] = true,
-    ["DrMundo"] = true,
-    ["MonkeyKing"] = true,
-    ["Gragas"] = true,
-    ["Twitch"] = true,
-    ["JarvanIV"] = true,
-}
-
---Checking Champion 
-if Champions[myHero.charName] == nil then
-    print('Shadow AIO does not support ' .. myHero.charName) return
-end
-
-
 Callback.Add("Load", function()
     orbwalker = _G.SDK.Orbwalker
     TargetSelector = _G.SDK.TargetSelector
@@ -103,13 +88,8 @@ Callback.Add("Load", function()
         print("Requires GamsteronPrediction please download the file thanks!");
         return
     end
-    if not FileExist(COMMON_PATH .. "PussyDamageLib.lua") then
-        print("PussyDamageLib. installed Press 2x F6")
-        DownloadFileAsync("https://raw.githubusercontent.com/Pussykate/GoS/master/PussyDamageLib.lua", COMMON_PATH .. "PussyDamageLib.lua", function() end)
-        while not FileExist(COMMON_PATH .. "PussyDamageLib.lua") do end
-    end
-        
-    require('PussyDamageLib')
+    require('damagelib')
+
     local _IsHero = _G[myHero.charName]();
     _IsHero:LoadMenu();
 end)
@@ -130,27 +110,27 @@ return false;
 end
 
 local function MinionsNear(pos,range)
-	local pos = pos.pos
-	local N = 0
-		for i = 1, Game.MinionCount() do 
-		local Minion = Game.Minion(i)
-		local Range = range * range
-		if IsValid(Minion, 800) and Minion.team == TEAM_ENEMY and GetDistanceSqr(pos, Minion.pos) < Range then
-			N = N + 1
-		end
-	end
-	return N	
-end	
+    local pos = pos.pos
+    local N = 0
+        for i = 1, Game.MinionCount() do 
+        local Minion = Game.Minion(i)
+        local Range = range * range
+        if IsValid(Minion, 800) and Minion.team == TEAM_ENEMY and GetDistanceSqr(pos, Minion.pos) < Range then
+            N = N + 1
+        end
+    end
+    return N    
+end 
 
 local function GetAllyHeroes() 
-	AllyHeroes = {}
-	for i = 1, Game.HeroCount() do
-		local Hero = Game.Hero(i)
-		if Hero.isAlly and not Hero.isMe then
-			table.insert(AllyHeroes, Hero)
-		end
-	end
-	return AllyHeroes
+    AllyHeroes = {}
+    for i = 1, Game.HeroCount() do
+        local Hero = Game.Hero(i)
+        if Hero.isAlly and not Hero.isMe then
+            table.insert(AllyHeroes, Hero)
+        end
+    end
+    return AllyHeroes
 end
 
 local function Ready(spell)
@@ -175,145 +155,232 @@ local function OnEnemyHeroLoad(cb)
     end
 end
 
+function GetDistanceSqr(p1, p2)
+    if not p1 then return math.huge end
+    p2 = p2 or myHero
+    local dx = p1.x - p2.x
+    local dz = (p1.z or p1.y) - (p2.z or p2.y)
+    return dx*dx + dz*dz
+end
+
+function CountEnemiesNear(pos, range)
+    local pos = pos.pos
+    local N = 0
+    for i = 1, Game.HeroCount() do
+        local hero = Game.Hero(i)
+        if (IsValid(hero, range) and hero.isEnemy and GetDistanceSqr(pos, hero.pos) < range * range) then
+            N = N + 1
+        end
+    end
+    return N
+end
+
 function GetCastLevel(unit, slot)
-	return unit:GetSpellData(slot).level == 0 and 1 or unit:GetSpellData(slot).level
+    return unit:GetSpellData(slot).level == 0 and 1 or unit:GetSpellData(slot).level
 end
 
 local function GetStatsByRank(slot1, slot2, slot3, spell)
-	local slot1 = 0
+    local slot1 = 0
     local slot2 = 0
     local slot3 = 0
-	return (({slot1, slot2, slot3})[myHero:GetSpellData(spell).level or 1])
+    return (({slot1, slot2, slot3})[myHero:GetSpellData(spell).level or 1])
 end
+--[[----------------------------------------------------------------------------------------------------------------------------------------------
+   _   _   _   _   _      
+  / \ / \ / \ / \ / \     
+ ( S | T | A | R | T )    
+  \_/ \_/ \_/ \_/ \_/     
+   _   _                  
+  / \ / \                 
+ ( O | F )                
+  \_/ \_/                 
+   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ 
+ ( J | U | N | G | L | E )
+  \_/ \_/ \_/ \_/ \_/ \_/ 
+]]---------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-if myHero.charName == "Urgot" then
-class "Urgot"
-function Urgot:__init()
+--[[
+   _   _   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ / \ / \ 
+ ( M | a | s | t | e | r | Y | i )
+  \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/  
+                                                                    
+]]
+
+
+--local Heroes = {"MasterYi"}											<--- remove this 2 lines,,, you end this script with this, if myHero not MasterYi
+--if not table.contains(Heroes, myHero.charName) then return end       		  I have added check on line 1 with explain why i do this....
+        
+class "MasterYi"
+function MasterYi:__init()
     
-    self.Q = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 60, Range = 800, Speed = 1400, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 800, Range = 800, Speed = 1400, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    self.E = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 0, Range = 475, Speed = 0, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    self.R = {Type = _G.SPELLTYPE_LINE, Delay = 0.50, Radius = 0, Range = 2500, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 0, Range = 600, Speed = 4000, Collision = false}
     
-    
+
     OnAllyHeroLoad(function(hero)
         Allys[hero.networkID] = hero
     end)
     
     OnEnemyHeroLoad(function(hero)
         Enemys[hero.networkID] = hero
-    end)
-    
+    end)    
     Callback.Add("Tick", function() self:Tick() end)
     Callback.Add("Draw", function() self:Draw() end)
     
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
         end
-    )
+    end)
 end
 
-function Urgot:LoadMenu()
-    self.shadowMenu = MenuElement({type = MENU, id = "shadowUrgot", name = "Shadow Urgot"})
+local Icons = {
+    ["MasterYiIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/73/Master_Yi_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e6/Alpha_Strike.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/61/Meditate.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/74/Wuju_Style.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/3/34/Highlander.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+function MasterYi:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowMasterYi", name = "Shadow MasterYi", leftIcon = Icons["MasterYiIcon"]})
+
+
+    -- COMBO --
     self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo(Recomended Disabled)", value = false})
-    self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
+    self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+    self.shadowMenu.combo:MenuElement({id = "userrange", name = "Use [R] only if out of [Q] range?", value = true, leftIcon = Icons.R})
+
+    -- AUTO W --
+    self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W"})
+    self.shadowMenu.autow:MenuElement({id = "usew", name = "Use [W] automatically", value = true, leftIcon = Icons.W})
+    self.shadowMenu.autow:MenuElement({id = "usewhealth", name = "Min health to auto [W]", value = 30, min = 0, max = 100, identifier = "%"})
+
+    -- JUNGLE CLEAR --
     self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenu.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenu.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-    self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R"})
-    self.shadowMenu.autor:MenuElement({id = "AutoR", name = "Auto R", value = true})
-    --self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoW", name = "Draw if auto [W] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawRSettings", name = "Draw if only [R] on combo if out of [Q] range is on", value = true})
+
 end
 
-function Urgot:Draw()
-    
+
+function MasterYi:Draw()
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Auto Use W: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autow.usew:Value() then
+                Draw.Text("ON", 18, 290, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 290, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Use [R] if out of range: ", 18, 200, 60, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.combo.userrange:Value() then
+                Draw.Text("ON", 18, 370, 60, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 60, Draw.Color(255, 255, 0, 0))
+            end 
+    end
 end
 
-function Urgot:Tick()
+function MasterYi:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
-    self:AutoR()
+    self:autoW()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
         self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        
     end
 end
 
-function Urgot:AutoR()
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if Ready(_R) and target and IsValid(target) and (target.health <= target.maxHealth / 4) and self.shadowMenu.autor.AutoR:Value() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        --print(Pred.Hitchance)
-            --Control.CastSpell(HK_Q, target)
-            self:CastR(target)
-    end
-end
-
-
-function Urgot:Combo()
-    local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenu.combo.Q:Value() then
-            --Control.CastSpell(HK_Q, target)
-            self:CastQ(target)
-        end
-    end
-
-    local Wactive = false;
-    if myHero:GetSpellData(_W).name == 'UrgotW2' then
-    Wactive = true
-    else
-    Wactive = false
-    end
-    local target = TargetSelector:GetTarget(self.W.Range, 1)
-    if Ready(_W) and target and IsValid(target) and Wactive == false then
-        if self.shadowMenu.combo.W:Value() then
-            Control.KeyDown(HK_W)
-            Control.KeyUp(HK_W)
-        end
-    end
-    
-    local target = TargetSelector:GetTarget(self.E.Range - 100, 1)
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenu.combo.E:Value() then
-            Control.CastSpell(HK_E, target)
-            --self:CastSpell(HK_Etarget)
-        end
-    end
-
-end
-
-function Urgot:jungleclear()
-if self.shadowMenu.jungleclear.UseQ:Value() then 
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if obj.team ~= myHero.team then
-            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
-                    Control.CastSpell(HK_Q, obj);
-                end
+function MasterYi:autoW()
+  	
+        if self.shadowMenu.autow.usew:Value() and Ready(_W) then
+            if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
+                Control.CastSpell(HK_W)
             end
         end
-        if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_E, obj);
-        end
-    end
-end
+
 end
 
-function Urgot:CastQ(target)
+function MasterYi:jungleclear()
+
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_Q, obj)
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_E);
+                    end
+                end
+            end
+            
+        end
+
+end
+
+
+function MasterYi:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.useq:Value() then
+           self:CastQ(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.usee:Value() then
+           Control.CastSpell(HK_E)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+        if Ready(_R) and target and IsValid(target) then
+            if self.shadowMenu.combo.user:Value() then
+                Control.CastSpell(HK_R)
+            end
+        end   
+
+end
+
+
+function MasterYi:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
+end
+
+function MasterYi:CastQ(target)
     if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
@@ -322,186 +389,211 @@ function Urgot:CastQ(target)
         end
     end
 end
+--[[
+   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ 
+ ( L | e | e | S | i | n )
+  \_/ \_/ \_/ \_/ \_/ \_/ 
 
-function Urgot:CastR(target)
-    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-            Control.CastSpell(HK_R, Pred.CastPosition)
-            lastR = GetTickCount()
-        end
-    end
-end
-end
-if myHero.charName == "LeeSin" then
-    class "LeeSin"
+--]]
+   
+class "LeeSin"
 function LeeSin:__init()
     
-    self.Q = {_G.SPELLTYPE_LINE, Delay = 0.25, Radius = 65, Range = 1200, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 800, Range = 700, Speed = 1400, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    self.E = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 350, Range = 350, Speed = 0, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    self.R = {Type = _G.SPELLTYPE_LINE, Delay = 0.50, Radius = 0, Range = 375, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    
-    
+    self.Q = {_G.SPELLTYPE_LINE, Delay = 0.225, Radius = 60, Range = 1200, Speed = 1800, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO, _G.COLLISION_YASUOWALL}}
+    self.Q2 = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Range = 1300}
+
+    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Range = 700, Speed = 1500}
+    self.W2 = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Range = 350, Speed = 1500}
+
+    self.E = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Range = 425, Speed = 0}
+    self.E2 = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Range = 575, Speed = 0}
+
+    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Range = 375, Speed = 1500}
+
     OnAllyHeroLoad(function(hero)
         Allys[hero.networkID] = hero
     end)
     
     OnEnemyHeroLoad(function(hero)
         Enemys[hero.networkID] = hero
-    end)
-    
+    end)    
     Callback.Add("Tick", function() self:Tick() end)
     Callback.Add("Draw", function() self:Draw() end)
     
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
         end
-    )
+    end)
 end
+
+local Icons = {
+    ["LeeSinIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/1/16/Lee_Sin_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/74/Sonic_Wave.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f1/Safeguard.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/bb/Tempest.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/aa/Dragon%27s_Rage.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
 
 function LeeSin:LoadMenu()
-    self.shadowMenuLee = MenuElement({type = MENU, id = "shadowLeeSin", name = "Shadow Lee"})
-    self.shadowMenuLee:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenuLee.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenuLee.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-    self.shadowMenuLee:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenuLee.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenuLee.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-    self.shadowMenuLee.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-    self.shadowMenuLee:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-    self.shadowMenuLee.killsteal:MenuElement({id = "AutoQ", name = "Auto Q", value = true})
-    self.shadowMenuLee.killsteal:MenuElement({id = "AutoR", name = "Auto R", value = true})
-    self.shadowMenuLee:MenuElement({type = MENU, id = "autow", name = "Auto W settings"})
-    self.shadowMenuLee.autow:MenuElement({id = "autows", name = "Auto W yourself", value = true})
-    self.shadowMenuLee.autow:MenuElement({id = "selfhealth", name = "Min health to auto w self", value = 30, min = 0, max = 100, identifier = "%"})
-    self.shadowMenuLee.autow:MenuElement({id = "autowa", name = "Auto W ally", value = true})
-    self.shadowMenuLee.autow:MenuElement({id = "allyhealth", name = "Min health to auto w ally", value = 30, min = 0, max = 100, identifier = "%"})
-	self.shadowMenuLee:MenuElement({type = MENU, id = "Drawing", name = "Drawing Settings"})
-	self.shadowMenuLee.Drawing:MenuElement({id = "DrawQ", name = "Draw [Q] Range", value = true})
-	self.shadowMenuLee.Drawing:MenuElement({id = "DrawR", name = "Draw [R] Range", value = true})
-	self.shadowMenuLee.Drawing:MenuElement({id = "DrawE", name = "Draw [E] Range", value = true})
-    self.shadowMenuLee.Drawing:MenuElement({id = "DrawW", name = "Draw [W] Range", value = true})
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowLeeSin", name = "Shadow LeeSin", leftIcon = Icons["LeeSinIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+
+    -- AUTO W --
+    self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W"})
+    self.shadowMenu.autow:MenuElement({id = "usew", name = "Use [W] automatically", value = true, leftIcon = Icons.W})
+    self.shadowMenu.autow:MenuElement({id = "usewhealth", name = "Min health to auto [W]", value = 30, min = 0, max = 100, identifier = "%"})
+
+    -- AUTO R --
+    self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R"})
+    self.shadowMenu.autor:MenuElement({id = "user", name = "Use [R] automatically", value = true, leftIcon = Icons.W})
+    self.shadowMenu.autor:MenuElement({id = "useronks", name = "Use [R] on killable", value = true})
+    self.shadowMenu.autor:MenuElement({id = "userpanic", name = "Use [R] on panic", value = true})
+    self.shadowMenu.autor:MenuElement({id = "userpanichealth", name = "Min health to auto [R] on panic", value = 30, min = 0, max = 100, identifier = "%"})
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoW", name = "Draw if auto [W] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoRkillable", name = "Draw if auto [R] on killable is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoRpanic", name = "Draw if auto [R] on low hp", value = true})
+
 end
 
+
 function LeeSin:Draw()
-    if myHero.dead then return end
-	if self.shadowMenuLee.Drawing.DrawR:Value() and Ready(_R) then
-    Draw.Circle(myHero, 375, 1, Draw.Color(255, 225, 255, 10))
-	end                                                 
-	if self.shadowMenuLee.Drawing.DrawQ:Value() and Ready(_Q) and myHero:GetSpellData(_Q).name == "BlindMonkQOne" then
-    Draw.Circle(myHero, 1200, 1, Draw.Color(225, 225, 0, 10))
-	end
-	if self.shadowMenuLee.Drawing.DrawE:Value() and Ready(_E) and myHero:GetSpellData(_E).name == "BlindMonkEOne"  then
-    Draw.Circle(myHero, 350, 1, Draw.Color(225, 225, 125, 10))
-	end
-	if self.shadowMenuLee.Drawing.DrawW:Value() and Ready(_W) then
-    Draw.Circle(myHero, 700, 1, Draw.Color(225, 225, 125, 10))
-	end
+
+    if self.shadowMenu.drawings.drawAutoW:Value() then
+        Draw.Text("Auto Use W: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autow.usew:Value() then
+                Draw.Text("ON", 18, 370, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoRkillable:Value() then
+        Draw.Text("Use [R] if killable: ", 18, 200, 60, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autor.useronks:Value() then
+                Draw.Text("ON", 18, 370, 60, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 60, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoRpanic:Value() then
+        Draw.Text("Use [R] to save self: ", 18, 200, 90, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autor.userpanic:Value() then
+                Draw.Text("ON", 18, 370, 90, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 370, 90, Draw.Color(255, 255, 0, 0))
+            end 
+    end
 end
 
 function LeeSin:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
-    self:killsteal()
-    self:autow()
+    self:autoW()
+    self:autoR()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
         self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        
     end
 end
 
-function LeeSin:killsteal() 
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if target == nil then return end
-        local rdmg = (({150, 375, 600})[myHero:GetSpellData(_R).level or 1] + (myHero.bonusDamage * 2))
-        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenuLee.killsteal.AutoR:Value() then
-            --Control.CastSpell(HK_Q, target)
-            self:CastR(target)
+
+function LeeSin:autoW()
+  	
+        if self.shadowMenu.autow.usew:Value() and Ready(_W) then
+            if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
+                Control.CastSpell(HK_W, myHero.pos)
+            end
         end
-    target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if target ~= nil then
-        local qdmg = (({55, 80, 105, 130, 155})[myHero:GetSpellData(_Q).level] + myHero.bonusDamage) * (2 - target.health / target.maxHealth)
-        if Ready(_Q) and target and IsValid(target) and (target.health <= qdmg) and self.shadowMenuLee.killsteal.AutoQ:Value() then
-            --Control.CastSpell(HK_Q, target)
-            self:CastQ(target)
-        end
-    end
+
 end
 
-function LeeSin:Combo()
-    local TargetSelector = _G.SDK.TargetSelector
-    local pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-    local qishit = myHero:GetSpellData(_Q).toggleState
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if myHero:GetSpellData(_Q).name == BlindMonkQTwo and Ready(_Q) then
-        Control.KeyDown(_Q)
-    end
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenuLee.combo.Q:Value() then
-            --Control.CastSpell(HK_Q, target)
-            self:CastQ(target)
-        end
-    end
-    local target = TargetSelector:GetTarget(self.E.Range, 1)
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenuLee.combo.E:Value() then
-            Control.KeyDown(HK_E)
-            --self:CastSpell(HK_Etarget)
+function LeeSin:autoR()
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target and IsValid(target)then
+        local rdmg = getdmg("R", target, myHero)
+        if self.shadowMenu.autor.user:Value() and Ready(_R) then
+            if self.shadowMenu.autor.useronks:Value() and rdmg > target.health then
+                self:CastR(target)
+            end
         end
     end
 end
 
 function LeeSin:jungleclear()
-if self.shadowMenuLee.jungleclear.UseQ:Value() then 
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if obj.team ~= myHero.team then
-            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                if Ready(_Q) and self.shadowMenuLee.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                    Control.CastSpell(HK_Q, obj);
-                end
-            end
-        end
-        if Ready(_W) and self.shadowMenuLee.jungleclear.UseW:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_W);
-        end
-        if Ready(_E) and self.shadowMenuLee.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_E);
-        end
-    end
-end
-end
 
-function LeeSin:autow()
-    local target = TargetSelector:GetTarget(800)     	
-    if target == nil then return end	
-        
-        if self.shadowMenuLee.autow.autows:Value() and Ready(_W) then
-            if myHero.health/myHero.maxHealth <= self.shadowMenuLee.autow.selfhealth:Value()/100 then
-                Control.CastSpell(HK_W, myHero)
-                if myHero:GetSpellData(_W).name == "BlindMonkWTwo" then
-                    Control.CastSpell(HK_W)
-                end
-            end
-            for i, ally in pairs(GetAllyHeroes()) do
-                if self.shadowMenuLee.autow.autowa:Value() and IsValid(ally,1000) and myHero.pos:DistanceTo(ally.pos) <= 700 and ally.health/ally.maxHealth <= self.shadowMenuLee.autow.allyhealth:Value()/100 then
-                    Control.CastSpell(HK_W, ally)
-                    if HasBuff(ally, "blindmonkwoneshield") then
-                        Control.CastSpell(HK_W)
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_Q, obj)
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.E.Range) then
+                        Control.CastSpell(HK_E);
                     end
                 end
             end
+            
         end
+
+end
+
+
+function LeeSin:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.useq:Value() then
+           self:CastQ(target)
+        end														
     end
+
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.usee:Value() then
+           self:CastE(target)
+        end														
+    end
+
+
+end
+
+
+function LeeSin:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
+end
 
 function LeeSin:CastQ(target)
     if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
@@ -515,219 +607,383 @@ end
 
 function LeeSin:CastR(target)
     if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_HIGH then
             Control.CastSpell(HK_R, Pred.CastPosition)
             lastR = GetTickCount()
         end
     end
 end
+
+function LeeSin:CastE(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
 end
 
-class "MasterYi"
-function MasterYi:__init()
+--[[
+   _   _   _   _   _  
+  / \ / \ / \ / \ / \ 
+ ( E | L | I | S | E )
+  \_/ \_/ \_/ \_/ \_/ 
+]]
+
+class "Elise"
+function Elise:__init()
     
-    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 600, Range = 600, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.QH = {Type = _G.SPELLTYPE_CIRCLE, Range = 625, Radius = 0, Speed = 2200, Collision = false}
+    self.WH = {Type = _G.SPELLTYPE_LINE, Range = 950, Radius = 100, Speed = 5000, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL, _G.COLLISION_ENEMY}}
+    self.EH = {Type = _G.SPELLTYPE_LINE, Range = 1075, Radius = 55, Speed = 1600, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL, _G.COLLISION_ENEMY}}
+
+    self.QS = {Type = _G.SPELLTYPE_CIRCLE, Range = 475, Radius = 0, Speed = 20, Collision = false}
+    self.ES = {Type = _G.SPELLTYPE_LINE, Range = 750, Radius = 0, Speed = 20}
     
-    
+
     OnAllyHeroLoad(function(hero)
         Allys[hero.networkID] = hero
     end)
     
     OnEnemyHeroLoad(function(hero)
         Enemys[hero.networkID] = hero
-    end)
-    
+    end)    
     Callback.Add("Tick", function() self:Tick() end)
     Callback.Add("Draw", function() self:Draw() end)
     
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
         end
-    )
+    end)
 end
 
-function MasterYi:LoadMenu()
-    self.shadowMenuYi = MenuElement({type = MENU, id = "shadowMasterYi", name = "Shadow Yi"})
-    self.shadowMenuYi:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenuYi.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenuYi.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-    self.shadowMenuYi:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenuYi.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenuYi.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-    self.shadowMenuYi.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-    self.shadowMenuYi:MenuElement({type = MENU, id = "autow", name = "Auto W settings"})
-    self.shadowMenuYi.autow:MenuElement({id = "autow", name = "Auto W yourself", value = true})
-    self.shadowMenuYi.autow:MenuElement({id = "selfhealth", name = "Min health to auto w", value = 30, min = 0, max = 100, identifier = "%"})
-    self.shadowMenuYi:MenuElement({type = MENU, id = "DodgeSetting", name = "Ddoge Settings"})
-    self.shadowMenuYi.DodgeSetting:MenuElement({id = "DodgeSpells", name = "Dodge Incoming spells with [Q]", value = true})
-    self.shadowMenuYi.DodgeSetting:MenuElement({id = "Follow", name = "Use Q to follow dashes / blinks", value = true})
-	self.shadowMenuYi:MenuElement({type = MENU, id = "Drawing", name = "Drawing Settings"})
-	self.shadowMenuYi.Drawing:MenuElement({id = "DrawQ", name = "Draw [Q] Range", value = true})
+local Icons = {
+    ["EliseIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/1/1b/Elise_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/2b/Neurotoxin.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/60/Volatile_Spiderling.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/0/02/Cocoon.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/2b/Spider_Form.png",
+    ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
+    }
+
+function Elise:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowElise", name = "Shadow Elise", leftIcon = Icons["EliseIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "combo1", name = "Use Human E > W > Q > Spider E > Q > W", value = true})
+    self.shadowMenu.combo:MenuElement({id = "combor", name = "Switch to R manually after human combo done?", value = true})
+
+    -- Auto Stun --
+    self.shadowMenu:MenuElement({type = MENU, id = "autostun", name = "Auto Stun Setting"})
+    self.shadowMenu.autostun:MenuElement({id = "useautostun", name = "Use auto stun?", value = true})
+    self.shadowMenu.autostun:MenuElement({id = "changeform", name = "Automatically change from spdier form?", value = true})
+
+    -- Manual Stun --
+    self.shadowMenu:MenuElement({type = MENU, id = "manualstun", name = "Manual Stun Setting"})
+    self.shadowMenu.manualstun:MenuElement({id = "usemanualstun", name = "Use manual stun?", value = true})
+
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "combo1", name = "Use Human E > W > Q > Spider E > Q > W", value = true})
+
+     -- JUNGLE KILLSTEAL --
+    self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
+    self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use W in Jungle Steal", value = true, leftIcon = Icons.W})
+
+    -- DRAWING SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoE", name = "Draw if auto [E] is on", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawAutoForm", name = "Draw if auto [R] is on with Auto stun", value = true})
+    self.shadowMenu.drawings:MenuElement({id = "drawManualE", name = "Draw if manual [E] is on", value = true})
+
 end
 
-function MasterYi:Draw()
-    if myHero.dead then return end
+
+function Elise:Draw()
+
+    if self.shadowMenu.drawings.drawAutoE:Value() then
+        Draw.Text("Auto Use E: ", 18, 200, 30, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autostun.useautostun:Value() then
+                Draw.Text("ON", 18, 285, 30, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 285, 30, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawAutoForm:Value() then
+        Draw.Text("Auto Use R if can stun: ", 18, 200, 55, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.autostun.changeform:Value() then
+                Draw.Text("ON", 18, 365, 55, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 365, 55, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
+    if self.shadowMenu.drawings.drawManualE:Value() then
+        Draw.Text("Manual E with Harass Key: ", 18, 200, 80, Draw.Color(255, 225, 255, 255))
+            if self.shadowMenu.manualstun.usemanualstun:Value() then
+                Draw.Text("ON", 18, 390, 80, Draw.Color(255, 0, 255, 0))
+                else
+                    Draw.Text("OFF", 18, 390, 80, Draw.Color(255, 255, 0, 0))
+            end 
+    end
+
 end
 
-function MasterYi:Tick()
+function Elise:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
+    --self:junglekillsteal()
+        self:autostun()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
         self:jungleclear()
-    end
-    self:autow()
-    self:OnRecvSpell(target);
-    if target then
-        self:FollowDash(target);
+    elseif orbwalker.Modes[1] then
+        self:manualstun()
     end
 end
 
-function MasterYi:Combo()
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenuYi.combo.Q:Value() then
-            Control.CastSpell(HK_Q, target)
+function Elise:autostun()
+    local target = TargetSelector:GetTarget(self.EH.Range, 1)
+    if target and IsValid(target) then
+    local d = myHero.pos:DistanceTo(target.pos)
+    if Ready(_R) and self.shadowMenu.autostun.changeform:Value() and self.shadowMenu.autostun.useautostun:Value() and (myHero:GetSpellData(_Q).name == "EliseSpiderQCast")then
+        Control.CastSpell(HK_R)
+    end
+    if Ready(_E) and self.shadowMenu.autostun.useautostun:Value() and self.shadowMenu.autostun.changeform:Value() and d < 1075 then
+        self:CastEH(target)
+    end
+    end
+
+end
+
+function Elise:manualstun()
+    local target = TargetSelector:GetTarget(self.EH.Range, 1)
+    if target and IsValid(target) then
+    local d = myHero.pos:DistanceTo(target.pos)
+    if Ready(_E) and self.shadowMenu.manualstun.usemanualstun:Value() and d < 1075 then
+        self:CastEH(target)
+    end
+    end
+end
+
+function Elise:jungleclear()
+
+   -- if (myHero:GetSpellData(_R).name == "EliseRSpider") 
+
+    if self.shadowMenu.jungleclear.combo1:Value() then 
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_E) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.EH.Range) then
+                        Control.CastSpell(HK_E, obj);
+                    end
+                    if Ready(_W) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.WH.Range) then
+                        Control.CastSpell(HK_W, obj);
+                    end
+                    if Ready(_Q) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.QH.Range) then
+                        Control.CastSpell(HK_Q, obj);
+                    end
+                    if Ready(_R) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.QH.Range) then
+                        Control.CastSpell(HK_R);
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.combo1:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.ES.Range) then
+                        Control.CastSpell(HK_E);
+                        Control.CastSpell(HK_E, target);
+                    end
+                end
+            end
+            
         end
     end
+
+end
+
+
+function Elise:Combo()
+    local target = TargetSelector:GetTarget(self.EH.Range, 1)
+    if target == nil then return end
     if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenuYi.combo.E:Value() then
-            Control.KeyDown(HK_E)
-            --self:CastSpell(HK_Etarget)
-        end
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_E).name == "EliseHumanE") then
+           self:CastEH(target)
+        end														
     end
+
+    local target = TargetSelector:GetTarget(self.WH.Range, 1)
+    if target == nil then return end
+    local d = myHero.pos:DistanceTo(target.pos)
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_W).name == "EliseHumanW") then
+           self:CastWH(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.QH.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_Q).name == "EliseHumanQ") then
+           Control.CastSpell(HK_Q, target)
+        end														
+    end
+
+    if Ready(_R) then
+        if self.shadowMenu.combo.combor:Value() and (myHero:GetSpellData(_R).name == "EliseR") then
+            Control.KeyDown(HK_R)
+        end
+    end 
+
+ -- SPIDER --
+
+    local target = TargetSelector:GetTarget(self.ES.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_E).name == "EliseSpiderEInitial") then
+            Control.KeyDown(HK_E)
+            Control.CastSpell(HK_E, target)
+        end														
+    end
+
+    
+    local target = TargetSelector:GetTarget(self.QS.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_Q).name == "EliseSpiderQCast") then
+            Control.CastSpell(HK_Q, target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.QS.Range, 1)
+    if target == nil then return end
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.combo.combo1:Value() and (myHero:GetSpellData(_W).name == "EliseSpiderW") then
+            Control.KeyDown(HK_W)
+        end														
+    end
+
+
+
 end
 
-function MasterYi:jungleclear()
-if self.shadowMenuYi.jungleclear.UseQ:Value() then 
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if obj.team ~= myHero.team then
-            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                if Ready(_Q) and self.shadowMenuYi.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                    Control.CastSpell(HK_Q, obj);
+function Elise:junglekillsteal()
+    if self.shadowMenu.junglekillsteal.W:Value() then 
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    local wdmg = getdmg("W", obj, myHero, 1)
+                    if Ready(_W) and self.shadowMenu.junglekillsteal.W:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.W.Range and obj.health < wdmg) then
+                        Control.CastSpell(HK_W, obj);
+                    end
                 end
             end
         end
-        if Ready(_E) and self.shadowMenuYi.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_E);
-        end
-    end
-end
-end
-
-function MasterYi:autow()   	
-        if self.shadowMenuYi.autow.autow:Value() and Ready(_W) then
-            if myHero.health/myHero.maxHealth <= self.shadowMenuYi.autow.selfhealth:Value()/100 then
-                Control.CastSpell(HK_W, myHero)
-        end
     end
 end
 
-function MasterYi:CastDodge()
-    local target = nil
-	local bestchamp = { hero = nil, health = math.huge, maxHealth = math.huge }
-	if Game.HeroCount() > 0 then
-		for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-			if hero.IsEnemy and hero.visible and myHero.pos:DistanceTo(hero.pos) <= 600 then
-				if hero.maxHealth < bestchamp.maxHealth then
-					bestchamp.hero = hero
-					bestchamp.health = hero.health
-					bestchamp.maxHealth = hero.maxHealth
-				end
-			end
-		end
-		target = bestchamp.hero
-	end
-	if target then
-		local enemiesInRange = 0
-		for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-			if hero.IsEnemy and hero.team ~= target.team and target.pos:DistanceTo(hero.pos) < 1000 then
-				enemiesInRange = enemiesInRange + 1
-			end
-		end
-		if enemiesInRange > 1 then
-            for i = 1, Game.MinionCount() do
-                local obj = Game.Minion(i)
-                if obj.team ~= myHero.team then
-					if obj and myHero.pos:DistanceTo(obj.pos) < 600 then
-						target = obj
-						break
-					end
-				end
-			end
-		end
-	else
-		for i = 1, Game.MinionCount() do
-            local obj = Game.Minion(i)
-            if obj.team ~= myHero.team then
-				if obj and myHero.pos:DistanceTo(obj.pos) < 600 then
-					target = obj
-					break
-				end
-			end
-		end
-	end
-	if target then
-		if self.shadowMenuYi.DodgeSetting.DodgeSpells:Value() then
-            Control.CastSpell(HK_Q, target);
-		end
-	end
+function Elise:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
 end
 
-function MasterYi:Dodge()
-    local spell = myHero.activeSpell
-	if Ready(_Q) and spell and spell.owner and spell.owner.team == myHero.team and not myHero.attackData.state == STATE_ATTACK then
-		if spell.target and spell.target == myHero then
-			self:CastDodge()
-		else
-			if myHero.pos:DistanceTo(spell.endPos) <= (150 + myHero.boundingRadius) / 2 then
-				self:CastDodge()
-			end
-		end
-	end
+function Elise:CastWH(target)
+    if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.WH, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_W, Pred.CastPosition)
+            lastW = GetTickCount()
+        end
+    end
 end
 
-function MasterYi:FollowDash(target)
-    if self.shadowMenuYi.DodgeSetting.Follow:Value() and target and target.visible and not target.dead and target.pathing and target.pathing.hasMovePath and target.pathing.isDashing then
-        Control.CastSpell(HK_Q, target);
-	end
-end
-
-
-
-function MasterYi:OnRecvSpell(target)
-    self:Dodge();
-end
-
-function MasterYi:CastQ(target)
-    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+-- HUMAN CASTS --
+function Elise:CastEH(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.EH, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-            Control.CastSpell(HK_Q, Pred.CastPosition)
-            lastQ = GetTickCount()
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
         end
     end
 end
 
-class "Warwick"
-function Warwick:__init()
+function Elise:CastWS(target)
+    if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.WS, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_W, Pred.CastPosition)
+            lastW = GetTickCount()
+        end
+    end
+end
+
+
+-- SPIDER CASTS --
+function Elise:CastES(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.ES, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
+end
+
+function Elise:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+--[[-------------------------------------------------------------------------------------------------------------------------
+_   _   _              
+/ \ / \ / \             
+( E | N | D )            
+\_/ \_/ \_/             
+ _   _                  
+/ \ / \                 
+( O | F )                
+\_/ \_/                 
+ _   _   _   _   _   _  
+/ \ / \ / \ / \ / \ / \ 
+( J | U | N | G | L | E )
+\_/ \_/ \_/ \_/ \_/ \_/ 
+
+--]]-------------------------------------------------------------------------------------------------------------------------
+--[[
+   _   _   _   _  
+  / \ / \ / \ / \ 
+ ( J | I | N | X )
+  \_/ \_/ \_/ \_/ 
+]]
+
+class "Jinx"
+function Jinx:__init()
     
-    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 600, Range = 600, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 55, Range = 2.5 * myHero.ms, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.Q = {Type = _G.SPELLTYPE_CIRCLE, Radius = 150}
+    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_YASUOWALL, _G.COLLISION_MINION}}
+    self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 900, Radius = 50}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 20000, Radius = 225, Speed = 1500, Collision = true, MaxCollision = 1, CollisionTypes = {2, 3}}
+
     
-    
+
     OnAllyHeroLoad(function(hero)
         Allys[hero.networkID] = hero
     end)
@@ -735,305 +991,208 @@ function Warwick:__init()
     OnEnemyHeroLoad(function(hero)
         Enemys[hero.networkID] = hero
     end)
-    
+                                      --- you need Load here your Menu        
     Callback.Add("Tick", function() self:Tick() end)
     Callback.Add("Draw", function() self:Draw() end)
     
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
         end
-    )
+    end)
 end
 
-function Warwick:LoadMenu()
-    self.shadowMenuWick = MenuElement({type = MENU, id = "shadowWarwick", name = "Shadow Warwick"})
-    self.shadowMenuWick:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenuWick.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenuWick.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-    self.shadowMenuWick.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true})
-    self.shadowMenuWick:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenuWick.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenuWick.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-    self.shadowMenuWick.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-    self.shadowMenuWick:MenuElement({type = MENU, id = "autoe", name = "Auto E settings"})
-    self.shadowMenuWick.autoe:MenuElement({id = "autoe", name = "Auto E yourself", value = true})
-    self.shadowMenuWick.autoe:MenuElement({id = "selfhealth", name = "Min health to auto E", value = 30, min = 0, max = 100, identifier = "%"})
-    self.shadowMenuWick:MenuElement({type = MENU, id = "DodgeSetting", name = "Ddoge Settings"})
-    self.shadowMenuWick.DodgeSetting:MenuElement({id = "DodgeSpells", name = "Dodge Incoming spells with [Q]", value = true})
-    self.shadowMenuWick.DodgeSetting:MenuElement({id = "Follow", name = "Use Q to follow dashes / blinks", value = true})
-	self.shadowMenuWick:MenuElement({type = MENU, id = "Drawing", name = "Drawing Settings"})
-	self.shadowMenuWick.Drawing:MenuElement({id = "DrawQ", name = "Draw [Q] Range", value = true})
+local Icons = {
+    ["JinxIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/65/Jinx_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4d/Pow-Pow.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/76/Zap%21.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/bb/Flame_Chompers%21.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/a8/Super_Mega_Death_Rocket%21.png",
+    ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
+    }
+
+function Jinx:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowJinx", name = "Shadow Jinx", leftIcon = Icons["JinxIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
+    self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "EONCC", name = "Auto Use E on CC Targets", value = true, leftIcon = Icons.E})
+
+
+     -- JUNGLE KILLSTEAL --
+    self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
+    self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use W in Jungle Steal", value = true, leftIcon = Icons.W})
+
+
+    -- KILL STEAL --
+    self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealw", name = "Kill steal with W", value = true, leftIcon = Icons.W})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealrangemax", name = "Max Distance willing to use R at", value = 0, min = 0, max = 20000})
+
+    -- DRAWINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "Drawing", name = "Draw Settings"})
+    self.shadowMenu.Drawing:MenuElement({id = "draww", name = "Draw [W] Range", value = true, leftIcon = Icons.W})
+    self.shadowMenu.Drawing:MenuElement({id = "drawe", name = "Draw [E] Range", value = true, leftIcon = Icons.E})
+    self.shadowMenu.Drawing:MenuElement({id = "drawr", name = "Draw [R] Range", value = true, leftIcon = Icons.R})
+    self.shadowMenu.Drawing:MenuElement({id = "drawrkill", name = "Draw [R] Killable Text", value = true, leftIcon = Icons.R})
+
+
 end
 
-function Warwick:Draw()
-    if myHero.dead then return end
+
+function Jinx:Draw()
+
+    if self.shadowMenu.Drawing.drawr:Value() and Ready(_R) then
+		Draw.Circle(myHero, 1500, 1, Draw.Color(255, 0, 0))
+		end                                                 
+		if self.shadowMenu.Drawing.drawe:Value() and Ready(_E) then
+		Draw.Circle(myHero, 900, 1, Draw.Color(235, 147, 52))
+		end
+		if self.shadowMenu.Drawing.draww:Value() and Ready(_W) then
+		Draw.Circle(myHero, 1450, 1, Draw.Color(0, 212, 250))
+        end
+
+    
+    local target = TargetSelector:GetTarget(20000, 5)
+    if target and IsValid(target) then
+    local rdmg = getdmg("R", target, myHero)
+    if self.shadowMenu.Drawing.drawrkill:Value() and Ready(_R) and target.health < rdmg then
+        Draw.Text("Killable with [R]", 18, target.pos2D.x, target.pos2D.y + 50, Draw.Color(255, 225, 255, 255))
+    end
 end
 
-function Warwick:Tick()
+
+end
+
+function Jinx:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
-    end
-    if orbwalker.Modes[0] then
-        self:Combo()
-    elseif orbwalker.Modes[3] then
-        self:jungleclear()
     end
     self:autoe()
-    self:OnRecvSpell(target);
-    if target then
-        self:FollowDash(target);
-    end
-end
-
-function Warwick:Combo()
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenuWick.combo.Q:Value() then
-            Control.CastSpell(HK_Q, target)
-        end
-    end
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenuWick.combo.E:Value() then
-            Control.KeyDown(HK_E)
-            --self:CastSpell(HK_Etarget)
-        end
-    end
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    local range = 2.5 * myHero.ms
-    if Ready(_R) and target and IsValid(target)then
-        if self.shadowMenuWick.combo.R:Value() and myHero.pos:DistanceTo(target.pos) <= self.R.Range then
-            --print("Value is true")
-            self:CastR(target)
-        end
-    end
-end
-
-function Warwick:jungleclear()
-if self.shadowMenuWick.jungleclear.UseQ:Value() then 
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if obj.team ~= myHero.team then
-            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                if Ready(_Q) and self.shadowMenuWick.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                    Control.CastSpell(HK_Q, obj);
-                end
-            end
-        end
-        if Ready(_E) and self.shadowMenuWick.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_E);
-        end
-    end
-end
-end
-
-function Warwick:autoe()   	
-        if self.shadowMenuWick.autoe.autoe:Value() and Ready(_E) then
-            if myHero.health/myHero.maxHealth <= self.shadowMenuWick.autoe.selfhealth:Value()/100 then
-                Control.CastSpell(HK_E)
-        end
-    end
-end
-
-function Warwick:CastDodge()
-    local target = nil
-	local bestchamp = { hero = nil, health = math.huge, maxHealth = math.huge }
-	if Game.HeroCount() > 0 then
-		for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-			if hero.IsEnemy and hero.visible and myHero.pos:DistanceTo(hero.pos) <= 600 then
-				if hero.maxHealth < bestchamp.maxHealth then
-					bestchamp.hero = hero
-					bestchamp.health = hero.health
-					bestchamp.maxHealth = hero.maxHealth
-				end
-			end
-		end
-		target = bestchamp.hero
-	end
-	if target then
-		local enemiesInRange = 0
-		for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-			if hero.IsEnemy and hero.team ~= target.team and target.pos:DistanceTo(hero.pos) < 1000 then
-				enemiesInRange = enemiesInRange + 1
-			end
-		end
-		if enemiesInRange > 1 then
-            for i = 1, Game.MinionCount() do
-                local obj = Game.Minion(i)
-                if obj.team ~= myHero.team then
-					if obj and myHero.pos:DistanceTo(obj.pos) < 600 then
-						target = obj
-						break
-					end
-				end
-			end
-		end
-	else
-		for i = 1, Game.MinionCount() do
-            local obj = Game.Minion(i)
-            if obj.team ~= myHero.team then
-				if obj and myHero.pos:DistanceTo(obj.pos) < 600 then
-					target = obj
-					break
-				end
-			end
-		end
-	end
-	if target then
-		if self.shadowMenuWick.DodgeSetting.DodgeSpells:Value() then
-            Control.KeyDown(HK_Q, target);
-		end
-	end
-end
-
-function Warwick:Dodge()
-    local spell = myHero.activeSpell
-	if Ready(_Q) and spell and spell.owner and spell.owner.team == myHero.team and not myHero.attackData.state == STATE_ATTACK then
-		if spell.target and spell.target == myHero then
-			self:CastDodge()
-		else
-			if myHero.pos:DistanceTo(spell.endPos) <= (150 + myHero.boundingRadius) / 2 then
-				self:CastDodge()
-			end
-		end
-	end
-end
-
-function Warwick:FollowDash(target)
-    if self.shadowMenuWick.DodgeSetting.Follow:Value() and target and target.visible and not target.dead and target.pathing and target.pathing.hasMovePath and target.pathing.isDashing then
-        Control.CastSpell(HK_Q, target);
-	end
-end
-
-
-
-function Warwick:OnRecvSpell(target)
-    self:Dodge();
-end
-
-function Warwick:CastR(target)
-    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-            Control.CastSpell(HK_R, Pred.CastPosition)
-            lastR = GetTickCount()
-        end
-    end
-end
-
-class "Hecarim"
-function Hecarim:__init()
-    
-    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 350, Range = 350, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 575, Range = 575, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 1000, Range = 1000, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    
-    
-    OnAllyHeroLoad(function(hero)
-        Allys[hero.networkID] = hero
-    end)
-    
-    OnEnemyHeroLoad(function(hero)
-        Enemys[hero.networkID] = hero
-    end)
-    
-    Callback.Add("Tick", function() self:Tick() end)
-    Callback.Add("Draw", function() self:Draw() end)
-    
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
-        end
-    )
-end
-
-function Hecarim:LoadMenu()
-    self.shadowMenuHecarim = MenuElement({type = MENU, id = "shadowHecarim", name = "Shadow Hecarim"})
-    self.shadowMenuHecarim:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenuHecarim.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenuHecarim.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-    self.shadowMenuHecarim.combo:MenuElement({id = "W", name = "Use W in  Combo", value = true})
-    self.shadowMenuHecarim.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true})
-    self.shadowMenuHecarim:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenuHecarim.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenuHecarim.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-end
-
-function Hecarim:Draw()
-    if myHero.dead then return end
-end
-
-function Hecarim:Tick()
-    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-        return
-    end
+    self:killsteal()
+    self:junglekillsteal()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
-        self:jungleclear()
     end
 end
 
-function Hecarim:Combo()
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenuHecarim.combo.Q:Value() then
-            Control.CastSpell(HK_Q, target)
+function Jinx:autoe()
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target and IsValid(target) then
+    if Ready(_E) and self.shadowMenu.combo.EONCC:Value() and IsImmobileTarget(target) then
+        self:CastE(target)
+
+    end
+    end
+end
+function Jinx:killsteal()
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target and IsValid(target) then      
+    local d = myHero.pos:DistanceTo(target.pos)
+    local wdmg = getdmg("W", target, myHero)
+    local rdmg = getdmg("R", target, myHero)
+        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() and d > 500 and d < self.shadowMenu.killsteal.killstealrangemax:Value() then
+            self:CastR(target)
+        end
+        if Ready(_W) and target and IsValid(target) and (target.health <= wdmg) and self.shadowMenu.killsteal.killstealw:Value() then
+            self:CastW(target)
         end
     end
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenuHecarim.combo.E:Value() then
-            Control.KeyDown(HK_E)
-            --self:CastSpell(HK_Etarget)
-        end
-    end
+end
+
+function Jinx:Combo()
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then return end
     if Ready(_W) and target and IsValid(target) then
-        if self.shadowMenuHecarim.combo.W:Value() then
-            Control.KeyDown(HK_W)
-            Control.KeyUp(HK_W)
+        if self.shadowMenu.combo.W:Value() then
+           self:CastW(target)
+            --self:CastSpell(HK_Etarget)
+        end														---- you have "end" forget
+    end
+
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target == nil then return end
+    local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.E:Value() then
+            self:CastE(target)
             --self:CastSpell(HK_Etarget)
         end
     end
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if Ready(_R) and target and IsValid(target)then
-        if self.shadowMenuHecarim.combo.R:Value() then
-            --print("Value is true")
-            self:CastR(target)
-        end
-    end
+
+
+
+    
+    local distance = target.pos:DistanceTo(myHero.pos) 
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target)then
+        if self.shadowMenu.combo.Q:Value() then
+            if distance > 615 and not self:HasSecondQ() or (distance < 615 and self:HasSecondQ()) then
+                Control.CastSpell(HK_Q)
+            end
+        end    
+    end 
 end
 
-function Hecarim:jungleclear()
-if self.shadowMenuHecarim.jungleclear.UseQ:Value() then 
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if obj.team ~= myHero.team then
-            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                if Ready(_Q) and self.shadowMenuHecarim.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                    Control.CastSpell(HK_Q, obj);
+function Jinx:junglekillsteal()
+    if self.shadowMenu.junglekillsteal.W:Value() then 
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    local wdmg = getdmg("W", obj, myHero, 1)
+                    if Ready(_W) and self.shadowMenu.junglekillsteal.W:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.W.Range and obj.health < wdmg) then
+                        Control.CastSpell(HK_W, obj);
+                    end
                 end
             end
         end
-        if Ready(_W) and self.shadowMenuHecarim.jungleclear.UseW:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.KeyDown(HK_W);
+    end
+end
+
+function Jinx:HasSecondQ()
+    return Jinx:GotBuff(myHero, "JinxQ") > 0
+end
+
+function Jinx:GotBuff(unit, buffname)
+    for i = 0, unit.buffCount do
+        local buff = unit:GetBuff(i)
+        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+    end
+    return 0
+end
+
+function Jinx:CastW(target)
+    if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.W, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_W, Pred.CastPosition)
+            lastW = GetTickCount()
         end
     end
 end
+
+function Jinx:CastE(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
 end
 
-function Hecarim:CastR(target)
+function Jinx:CastR(target)
     if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_HIGH then
@@ -1043,449 +1202,20 @@ function Hecarim:CastR(target)
     end
 end
 
-class "Jax"
-function Jax:__init()
-    
-    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 700, Range = 700, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = myHero.range, Range = myHero.range, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.E = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 300, Range = 300, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    
-    
-    OnAllyHeroLoad(function(hero)
-        Allys[hero.networkID] = hero
-    end)
-    
-    OnEnemyHeroLoad(function(hero)
-        Enemys[hero.networkID] = hero
-    end)
-    
-    Callback.Add("Tick", function() self:Tick() end)
-    Callback.Add("Draw", function() self:Draw() end)
-    
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
-        end
-    )
-end
+    --[[
+    _   _   _   _   _   _   _   _   _   _  
+    / \ / \ / \ / \ / \ / \ / \ / \ / \ / \ 
+    ( B | L | I | T | Z | C | R | A | N | K )
+    \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ 
+                                                                        
+    ]]
 
-function Jax:LoadMenu()
-    self.shadowMenuJax = MenuElement({type = MENU, id = "shadowJax", name = "Shadow Jax"})
-    self.shadowMenuJax:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenuJax.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenuJax.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-    self.shadowMenuJax.combo:MenuElement({id = "W", name = "Use W in  Combo", value = true})
-    self.shadowMenuJax:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenuJax.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenuJax.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-    self.shadowMenuJax.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-    self.shadowMenuJax:MenuElement({type = MENU, id = "autor", name = "Auto R settings"})
-    self.shadowMenuJax.autor:MenuElement({id = "autor", name = "Auto R yourself", value = true})
-    self.shadowMenuJax.autor:MenuElement({id = "selfhealth", name = "Min health to auto E", value = 30, min = 0, max = 100, identifier = "%"})
-end
-
-function Jax:Draw()
-    if myHero.dead then return end
-end
-
-function Jax:Tick()
-    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-        return
-    end
-    if orbwalker.Modes[0] then
-        self:Combo()
-    elseif orbwalker.Modes[3] then
-        self:jungleclear()
-    end
-end
-
-function Jax:Combo()
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenuJax.combo.Q:Value() then
-            Control.CastSpell(HK_Q, target)
-        end
-    end
-    local target = TargetSelector:GetTarget(self.E.Range, 1)
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenuJax.combo.E:Value() then
-            Control.KeyDown(HK_E)
-            --self:CastSpell(HK_Etarget)
-        end
-    end
-    local target = TargetSelector:GetTarget(self.W.Range, 1)
-    if Ready(_W) and target and IsValid(target)then
-        if self.shadowMenuJax.combo.W:Value() then
-            --print("Value is true")
-            Control.KeyDown(HK_W)
-        end
-    end
-end
-
-function Jax:jungleclear()
-if self.shadowMenuJax.jungleclear.UseQ:Value() then 
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if obj.team ~= myHero.team then
-            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                if Ready(_Q) and self.shadowMenuJax.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                    Control.CastSpell(HK_Q, obj);
-                end
-            end
-        end
-        if Ready(_E) and self.shadowMenuJax.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_E);
-        end
-        if Ready(_W) and self.shadowMenuJax.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-            Control.CastSpell(HK_W);
-        end
-    end
-end
-end
-
-function Jax:autor()   	
-    if self.shadowMenuJax.autor.autor:Value() and Ready(_R) then
-        if myHero.health/myHero.maxHealth <= self.shadowMenuJax.autor.selfhealth:Value()/100 then
-            Control.KeyDown(HK_R)
-    end
-end
-end
-
-class "Amumu"
-function Amumu:__init()
-    
-    self.Q = {_G.SPELLTYPE_LINE, Delay = 0.225, Radius = 1100, Range = 1100, Speed = 2000, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
-    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 550, Range = 550, Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-    self.E = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 350, Range = 350, Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 300, Range = 300, Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-
-    
-    OnAllyHeroLoad(function(hero)
-        Allys[hero.networkID] = hero
-    end)
-    
-    OnEnemyHeroLoad(function(hero)
-        Enemys[hero.networkID] = hero
-    end)
-    
-    Callback.Add("Tick", function() self:Tick() end)
-    Callback.Add("Draw", function() self:Draw() end)
-    
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
-        end
-    )
-end
-
-function Amumu:LoadMenu()
-    self.shadowMenuAmumu = MenuElement({type = MENU, id = "shadowAmumu", name = "Shadow Amumu"})
-    self.shadowMenuAmumu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenuAmumu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-    self.shadowMenuAmumu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-    self.shadowMenuAmumu.combo:MenuElement({id = "W", name = "Use W in  Combo", value = true})
-    self.shadowMenuAmumu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    self.shadowMenuAmumu.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-    self.shadowMenuAmumu.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-    self.shadowMenuAmumu.jungleclear:MenuElement({id = "wmanajungle", name = "Stop using W in clear at what %", value = 30, min = 0, max = 100, identifier = "%"})
-    self.shadowMenuAmumu.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-    self.shadowMenuAmumu:MenuElement({type = MENU, id = "autor", name = "Auto R settings"})
-    self.shadowMenuAmumu.autor:MenuElement({id = "autor", name = "If can auto sun with [R] use automatically", value = true})
-    self.shadowMenuAmumu.autor:MenuElement({id = "autormin", name = "How many eneimies inside [R] range to ult.", value = 2, min = 1, max = 4, step = 1}) 
-    self.shadowMenuAmumu:MenuElement({type = MENU, id = "killsteal", name = "Killsteal settings"})
-    self.shadowMenuAmumu.killsteal:MenuElement({id = "useq", name = "If can kill target with [Q] use automatically", value = true})
-    self.shadowMenuAmumu.killsteal:MenuElement({id = "usee", name = "If can kill target with [E] use automatically", value = true})
-
-end
-
-function Amumu:Draw()
-    if myHero.dead then return end
-end
-
-function Amumu:Tick()
-    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-        return
-    end
-    self:autor()
-    if orbwalker.Modes[0] then
-        self:Combo()
-    elseif orbwalker.Modes[3] then
-        self:jungleclear()
-    end
-end
-
-function Amumu:Combo()
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if Ready(_Q) and target and IsValid(target) then
-        if self.shadowMenuAmumu.combo.Q:Value() then
-            self:CastQ(target)
-        end
-    end
-    local target = TargetSelector:GetTarget(self.E.Range, 1)
-    if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenuAmumu.combo.E:Value() then
-            Control.CastSpell(HK_E, target)
-            --self:CastSpell(HK_Etarget)
-        end
-    end
-    local target = TargetSelector:GetTarget(self.W.Range, 1)
-    if Ready(_W) and target and IsValid(target)then
-        if self.shadowMenuAmumu.combo.W:Value() then
-            --print("Value is true")
-            Control.KeyDown(HK_W)
-        end
-    end
-end
-
-function Amumu:jungleclear()
-    if self.shadowMenuAmumu.jungleclear.UseQ:Value() then 
-        for i = 1, Game.MinionCount() do
-            local obj = Game.Minion(i)
-            if obj.team ~= myHero.team then
-                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                    if Ready(_Q) and self.shadowMenuAmumu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                        Control.CastSpell(HK_Q, obj);
-                    end
-                end
-            end
-            if Ready(_E) and self.shadowMenuAmumu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-                Control.CastSpell(HK_E);
-            end
-            if Ready(_W) and self.shadowMenuAmumu.jungleclear.UseW:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-                Control.CastSpell(HK_W);
-            end
-        end
-    end
-    end
-
-    function GetDistanceSqr(p1, p2)
-        if not p1 then return math.huge end
-        p2 = p2 or myHero
-        local dx = p1.x - p2.x
-        local dz = (p1.z or p1.y) - (p2.z or p2.y)
-        return dx*dx + dz*dz
-    end
-
-    function CountEnemiesNear(pos, range)
-        local pos = pos.pos
-        local N = 0
-        for i = 1, Game.HeroCount() do
-            local hero = Game.Hero(i)
-            if (IsValid(hero, range) and hero.isEnemy and GetDistanceSqr(pos, hero.pos) < range * range) then
-                N = N + 1
-            end
-        end
-        return N
-    end
-
-function Amumu:autor()
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if self.shadowMenuAmumu.autor.autor:Value() then
-        if Ready(_R) and target and IsValid(target) and CountEnemiesNear(target, 350) >= self.shadowMenuAmumu.autor.autormin:Value() then
-            Control.CastSpell(HK_R)
-        end
-    end
-end
-
-function Amumu:killsteal()
-    local QDMG = getdmg("q", target, myHero, 1)
-    local EDMG = getdmg("e", target, myHero, 1)
-    if self.shadowMenuAmumu.killsteal.useq:Value() and QDMG >= target.health then
-        self:CastQ()
-    end
-    if self.shadowMenuAmumu.killsteal.usee:Value() and EDMG >= target.health then
-        Control.CastSpell(HK_E, target)
-    end
-end
-
-function Amumu:CastQ(target)
-    if Ready(_Q) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-            Control.CastSpell(HK_Q, Pred.CastPosition)
-            lastQ = GetTickCount()
-        end
-    end
-end
-
-class "Cassiopeia"
-function Cassiopeia:__init()
-    
-    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.8, Radius = 75, Range = 850, Speed = math.huge, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 160, Range = 700, Speed = math.huge, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-    self.E = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 55, Range = 700, Speed = math.huge, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-    self.R = {_G.SPELLTYPE_CONE, Delay = 0.1, Radius = 80, Range = 825, Speed = 3200, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMY, _G.COLLISION_YASUOWALL}}
-    
-    OnAllyHeroLoad(function(hero)
-        Allys[hero.networkID] = hero
-    end)
-    
-    OnEnemyHeroLoad(function(hero)
-        Enemys[hero.networkID] = hero
-    end)
-    
-    Callback.Add("Tick", function() self:Tick() end)
-    Callback.Add("Draw", function() self:Draw() end)
-    
-    orbwalker:OnPreMovement(
-        function(args)
-            if lastMove + 180 > GetTickCount() then
-                args.Process = false
-            else
-                args.Process = true
-                lastMove = GetTickCount()
-            end
-        end
-    )
-end
-
-if myHero.charName == "Graves" then
-    class "Graves"
-    function Graves:__init()
-        
-        self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 100, Range = 925, Speed = 2000, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-        self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 250, Range = 950, Speed = 1000, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-        self.E = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 0, Range = 425, Speed = 2000, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-        self.R = {Type = _G.SPELLTYPE_CONE, Delay = 0.50, Radius = 800, Range = 1000, Speed = 3200, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-        
-        
-        OnAllyHeroLoad(function(hero)
-            Allys[hero.networkID] = hero
-        end)
-        
-        OnEnemyHeroLoad(function(hero)
-            Enemys[hero.networkID] = hero
-        end)
-        
-        Callback.Add("Tick", function() self:Tick() end)
-        Callback.Add("Draw", function() self:Draw() end)
-        
-        orbwalker:OnPreMovement(
-            function(args)
-                if lastMove + 180 > GetTickCount() then
-                    args.Process = false
-                else
-                    args.Process = true
-                    lastMove = GetTickCount()
-                end
-            end
-        )
-    end
-    
-    function Graves:LoadMenu()
-        self.shadowMenu = MenuElement({type = MENU, id = "shadowGraves", name = "Shadow Graves"})
-        self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-        self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-        self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo(Recomended Disabled)", value = false})
-        self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-        self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-        self.shadowMenu.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-        self.shadowMenu.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-        self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R"})
-        self.shadowMenu.autor:MenuElement({id = "AutoR", name = "Auto R", value = true})
-        --self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-    end
-    
-    function Graves:Draw()
-        
-    end
-    
-    function Graves:Tick()
-        if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-            return
-        end
-        if orbwalker.Modes[0] then
-            self:Combo()
-        elseif orbwalker.Modes[3] then
-            self:jungleclear()
-        end
-    end
-    
-    function Graves:AutoR()
-        local target = TargetSelector:GetTarget(self.R.Range, 1)
-        if Ready(_R) and target and IsValid(target) and (target.health <= target.maxHealth / 4) and self.shadowMenu.autor.AutoR:Value() then
-            local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-            --print(Pred.Hitchance)
-                --Control.CastSpell(HK_Q, target)
-                self:CastR(target)
-        end
-    end
-    
-    
-    function Graves:Combo()
-        local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-        local target = TargetSelector:GetTarget(self.Q.Range, 1)
-        if Ready(_Q) and target and IsValid(target) then
-            if self.shadowMenu.combo.Q:Value() then
-                self:CastQ(target)
-            end
-        end
-        if Ready(_E) and target and IsValid() then
-                self:CastE(target)
-        end
-    
-    
-    end
-    
-    function Graves:jungleclear()
-    if self.shadowMenu.jungleclear.UseQ:Value() then 
-        for i = 1, Game.MinionCount() do
-            local obj = Game.Minion(i)
-            if obj.team ~= myHero.team then
-                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                    if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
-                        Control.CastSpell(HK_Q, obj);
-                    end
-                end
-            end
-            if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-                Control.CastSpell(HK_E, obj);
-            end
-        end
-    end
-    end
-    
-    function Graves:CastQ(target)
-        if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-            local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-            if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                Control.CastSpell(HK_Q, Pred.CastPosition)
-                lastQ = GetTickCount()
-            end
-        end
-    end
-    
-    function Graves:CastR(target)
-        if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-            local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-            if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                Control.CastSpell(HK_R, Pred.CastPosition)
-                lastR = GetTickCount()
-            end
-        end
-    end
-    end
-
-    if myHero.charName == "Nocturne" then
-        class "Nocturne"
-        function Nocturne:__init()
+        class "Blitzcrank"
+        function Blitzcrank:__init()
             
-            self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 100, Range = 1200, Speed = 1600, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-            self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 800, Range = 800, Speed = 1400, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-            self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 0, Range = 475, Speed = 0, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-            self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.50, Radius = 10000, Range = ({2500, 3250, 4000})[GetCastLevel(myHero, _R)], Speed = 2000, Collision = false, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
+            self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 140, Range = 1150, Speed = 1800, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO, _G.COLLISION_YASUOWALL}}
+            self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 600, Range = 600, Speed = 0, Collision = false}
             
-            --print(GetCastLevel(myHero, _R))
 
             OnAllyHeroLoad(function(hero)
                 Allys[hero.networkID] = hero
@@ -1510,82 +1240,112 @@ if myHero.charName == "Graves" then
             )
         end
         
-        function Nocturne:LoadMenu()
-            self.shadowMenu = MenuElement({type = MENU, id = "shadowNocturne", name = "Shadow Nocturne"})
+        local Icons = {
+            ["BlitzIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ac/Blitzcrank_OriginalSquare.png",
+            ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e2/Rocket_Grab.png",
+            ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ab/Overdrive.png",
+            ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/98/Power_Fist.png",
+            ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/a6/Static_Field.png",
+            ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+            ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+            }
+
+
+        function Blitzcrank:LoadMenu()
+            self.shadowMenu = MenuElement({type = MENU, id = "shadowBlitzcrank", name = "Shadow Blitzcrank", leftIcon = Icons.BlitzIcon})
+
+            -- COMBO --
             self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-            self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-            self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = false})
-            self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-            self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-            self.shadowMenu.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-            self.shadowMenu.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-            self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Lane Clear"})
-            self.shadowMenu.laneclear:MenuElement({id= "UseQLane", name = "Use Q in Lane Clear", value = true})
-            self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Kill Steal"})
-            self.shadowMenu.autor:MenuElement({id = "AutoR", name = "Kill steal with R", value = true})
-            --self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+            self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+            self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
+            self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+            self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+
+            -- AUTO R --
+            self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+            self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+            self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies around", value = 1, min = 1, max = 5, identifier = "#"})
+
+            -- SUMMONER SETTINGS --
+            self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+
+            if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+                self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+            elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+                self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+            end
+
+            
+            if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+                self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+            elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+                self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+            end
+
         end
+
         
-        function Nocturne:Draw()
+        function Blitzcrank:Draw()
             
         end
         
-        function Nocturne:Tick()
+        function Blitzcrank:Tick()
             if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
                 return
             end
             self:AutoR()
+            self:AutoSummoners()
             if orbwalker.Modes[0] then
                 self:Combo()
             elseif orbwalker.Modes[3] then
-                self:jungleclear()
-                self:laneclear()
             end
         end
         
-        function Nocturne:AutoR()
-            local target = TargetSelector:GetTarget(self.R.Range, 1)
+        
+        function Blitzcrank:AutoSummoners()
+
+            -- IGNITE --
+            local target = TargetSelector:GetTarget(self.Q.Range, 1)
             if target and IsValid(target) then
-            local rdmg = (({150, 275, 400})[myHero:GetSpellData(_R).level or 1] + (myHero.bonusDamage * 2))
-            if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.autor.AutoR:Value() then
-                local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                --print(Pred.Hitchance)
-                    --Control.CastSpell(HK_Q, target)
-                    Control.CastSpell(HK_R)
-                    self:CastR(target)
+            local ignDmg = getdmg("IGNITE", target, myHero)
+            if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+                Control.CastSpell(HK_SUMMONER_1, target)
+            elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+                Control.CastSpell(HK_SUMMONER_2, target)
             end
+
+
         end
+
+
         end
-        
-        
-        function Nocturne:Combo()
+        function Blitzcrank:Combo()
             local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
             local target = TargetSelector:GetTarget(self.Q.Range, 1)
             if Ready(_Q) and target and IsValid(target) then
                 if self.shadowMenu.combo.Q:Value() then
-                    --Control.CastSpell(HK_Q, target)
                     self:CastQ(target)
                 end
             end
-            --print(GetCastLevel(myHero, _R))
-           -- print(self.R.Range)
-            if Ready(_W) then
-                if self.shadowMenu.combo.W:Value() then
+            local target = TargetSelector:GetTarget(2000, 1)
+            if Ready(_W) and target and IsValid(target) then
+                local d = myHero.pos:DistanceTo(target.pos)
+                if self.shadowMenu.combo.W:Value() and d >= 1150 then
                     Control.KeyDown(HK_W)
                 end
             end
             
-            local target = TargetSelector:GetTarget(self.E.Range - 100, 1)
+            local target = TargetSelector:GetTarget(self.Q.Range, 1)
             if Ready(_E) and target and IsValid(target) then
                 if self.shadowMenu.combo.E:Value() then
-                    Control.CastSpell(HK_E, target)
+                    Control.CastSpell(HK_E)
                     --self:CastSpell(HK_Etarget)
                 end
             end
         
         end
         
-        function Nocturne:jungleclear()
+        function Blitzcrank:jungleclear()
         if self.shadowMenu.jungleclear.UseQ:Value() then 
             for i = 1, Game.MinionCount() do
                 local obj = Game.Minion(i)
@@ -1594,837 +1354,29 @@ if myHero.charName == "Graves" then
                         if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
                             Control.CastSpell(HK_Q, obj);
                         end
-                    end
-                end
-                if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
-                    Control.CastSpell(HK_E, obj);
-                end
-            end
-        end
-        end
-
-        function Nocturne:laneclear()
-            for i = 1, Game.MinionCount() do
-                local minion = Game.Minion(i)
-                if minion.team ~= myHero.team then 
-                    local dist = myHero.pos:DistanceTo(minion.pos)
-                    if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
-                        Control.CastSpell(HK_Q, minion.pos)
-                    end
-
-                end
-            end
-        end
-        
-        function Nocturne:CastQ(target)
-            if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-                local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                    Control.CastSpell(HK_Q, Pred.CastPosition)
-                    lastQ = GetTickCount()
-                end
-            end
-        end
-        
-        function Nocturne:CastR(target)
-            if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-                local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                    Control.CastSpell(HK_R, Pred.CastPosition)
-                    lastR = GetTickCount()
-                end
-            end
-        end
-        end
-
-        if myHero.charName == "DrMundo" then
-            class "DrMundo"
-            function DrMundo:__init()
-                
-                self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 60, Range = 975, Speed = 1850, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 162.5, Range = 800, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 0, Range = 0, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 0, Range = 0, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                
-
-                OnAllyHeroLoad(function(hero)
-                    Allys[hero.networkID] = hero
-                end)
-                
-                OnEnemyHeroLoad(function(hero)
-                    Enemys[hero.networkID] = hero
-                end)
-                
-                Callback.Add("Tick", function() self:Tick() end)
-                Callback.Add("Draw", function() self:Draw() end)
-                
-                orbwalker:OnPreMovement(
-                    function(args)
-                        if lastMove + 180 > GetTickCount() then
-                            args.Process = false
-                        else
-                            args.Process = true
-                            lastMove = GetTickCount()
+                        if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                            Control.CastSpell(HK_E);
+                        end
+                        if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                            Control.KeyDown(HK_W);
                         end
                     end
-                )
-            end
-            
-            function DrMundo:LoadMenu()
-                self.shadowMenu = MenuElement({type = MENU, id = "shadowDrMundo", name = "Shadow DrMundo"})
-                self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-                self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true})
-                self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = false})
-                self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true})
-                self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true})
-                self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-                self.shadowMenu.jungleclear:MenuElement({id = "UseQ", name = "Use Q in Jungle Clear", value = true})
-                self.shadowMenu.jungleclear:MenuElement({id = "UseW", name = "Use W in Jungle Clear", value = true})
-                self.shadowMenu.jungleclear:MenuElement({id = "UseE", name = "Use E in Jungle Clear", value = true})
-                self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Lane Clear"})
-                self.shadowMenu.laneclear:MenuElement({id= "UseQLane", name = "Use Q in Lane Clear", value = true})
-                self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-                self.shadowMenu.killsteal:MenuElement({id = "killstealq", name = "Kill steal with Q", value = true})
-                self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
-                self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R] ?", value = true})
-                self.shadowMenu.autor:MenuElement({id = "autorhp", name = "Activate R when at what % HP", value = 30, min = 0, max = 100, identifier = "%"})
-            end
-            
-            function DrMundo:Draw()
-                
-            end
-            
-            function DrMundo:Tick()
-                if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-                    return
-                end
-                self:killsteal()
-                self:AutoR()
-                if orbwalker.Modes[0] then
-                    self:Combo()
-                elseif orbwalker.Modes[3] then
-                    self:jungleclear()
-                    self:laneclear()
-                end
-            end
-            
-            function DrMundo:killsteal()
-                local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                if target and IsValid(target) then
-                  --  print(myHero:GetSpellData(_W).toggleState)
-                local EnemyHealthThirty = target.health * .30
-                local qdmg = (({20, 275, 400})[myHero:GetSpellData(_R).level or 1])
-                if Ready(_R) and target and IsValid(target) and (target.health <= qdmg) and self.shadowMenu.killsteal.killstealq:Value() then
-                    local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                    --print(Pred.Hitchance)
-                        --Control.CastSpell(HK_Q, target)
-                        self:CastQ(target)
-                end
-            end
-            end
-            
-            
-            function DrMundo:Combo()
-                local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                if Ready(_Q) and target and IsValid(target) then
-                    if self.shadowMenu.combo.Q:Value() then
-                        self:CastQ(target)
                     end
                 end
-                if Ready(_W) then
-                    if self.shadowMenu.combo.W:Value() and myHero:GetSpellData(_W).toogleState ~= 2 then
-                        Control.KeyDown(HK_W)
-                    end
-                end
-                
-                local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                if Ready(_E) and target and IsValid(target) then
-                    if self.shadowMenu.combo.E:Value() then
-                        Control.CastSpell(HK_E)
-                        --self:CastSpell(HK_Etarget)
-                    end
-                end
-            
-            end
-            
-            function DrMundo:jungleclear()
-            if self.shadowMenu.jungleclear.UseQ:Value() then 
-                for i = 1, Game.MinionCount() do
-                    local obj = Game.Minion(i)
-                    if obj.team ~= myHero.team then
-                        if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                            if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
-                                Control.CastSpell(HK_Q, obj);
-                            end
-                            if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                Control.CastSpell(HK_E);
-                            end
-                            if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                Control.KeyDown(HK_W);
-                            end
-                        end
-                        end
-                    end
-            end
-            end
+        end
+        end
 
-            function DrMundo:AutoR()
-                local decimalhealthstring = "." .. self.shadowMenu.autor.autorhp:Value()
-                local decimalhealth = myHero.maxHealth * decimalhealthstring
-            
-                if self.shadowMenu.autor.useautor:Value() and myHero.health <= decimalhealth and Ready(_R) then
+        function Blitzcrank:AutoR()
+
+        local target = TargetSelector:GetTarget(self.R.Range, 1)
+            if target and IsValid(target) then
+                if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 600) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
                     Control.CastSpell(HK_R)
                 end
             end
-    
-            function DrMundo:laneclear()
-                for i = 1, Game.MinionCount() do
-                    local minion = Game.Minion(i)
-                    if minion.team ~= myHero.team then 
-                        local dist = myHero.pos:DistanceTo(minion.pos)
-                        if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
-                            Control.CastSpell(HK_Q, minion.pos)
-                        end
-    
-                    end
-                end
-            end
-            
-            function DrMundo:CastQ(target)
-                if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-                    local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                        Control.CastSpell(HK_Q, Pred.CastPosition)
-                        lastQ = GetTickCount()
-                    end
-                end
-            end
-
-    
-            
-            function DrMundo:CastR(target)
-                if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-                    local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                        Control.CastSpell(HK_R, Pred.CastPosition)
-                        lastR = GetTickCount()
-                    end
-                end
-            end
-            end
-
-            if myHero.charName == "MonkeyKing" then
-                class "MonkeyKing"
-                function MonkeyKing:__init()
-                    
-                    self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 100, Range = myHero:GetSpellData(_Q).range, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 175, Range = myHero:GetSpellData(_W).range, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 187.5, Range = myHero:GetSpellData(_E).range, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                    self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 162.5, Range = myHero:GetSpellData(_R).range, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                    
-    
-                    OnAllyHeroLoad(function(hero)
-                        Allys[hero.networkID] = hero
-                    end)
-                    
-                    OnEnemyHeroLoad(function(hero)
-                        Enemys[hero.networkID] = hero
-                    end)
-                    
-                    Callback.Add("Tick", function() self:Tick() end)
-                    Callback.Add("Draw", function() self:Draw() end)
-                    
-                    orbwalker:OnPreMovement(
-                        function(args)
-                            if lastMove + 180 > GetTickCount() then
-                                args.Process = false
-                            else
-                                args.Process = true
-                                lastMove = GetTickCount()
-                            end
-                        end
-                    )
-                end
-
-                local Icons = {
-                    ["WukongIcon"] = "https://vignette1.wikia.nocookie.net/leagueoflegends/images/7/78/Wukong_OriginalLoading.jpg",
-                    ["Q"] = "https://vignette3.wikia.nocookie.net/leagueoflegends/images/1/10/Crushing_Blow.png",
-                    ["W"] = "https://vignette1.wikia.nocookie.net/leagueoflegends/images/b/bb/Decoy.png",
-                    ["E"] = "https://vignette3.wikia.nocookie.net/leagueoflegends/images/e/e0/Nimbus_Strike.png",
-                    ["R"] = "https://vignette3.wikia.nocookie.net/leagueoflegends/images/7/79/Cyclone.png",
-                    ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
-                    }
-                
-                function MonkeyKing:LoadMenu()
-                    self.shadowMenu = MenuElement({type = MENU, id = "shadowMonkeyKing", name = "Shadow Wukong", leftIcon = Icons["WukongIcon"]})
-
-
-                    -- COMBO --
-                    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-                    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
-                    self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
-                    self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
-                    self.shadowMenu.combo:MenuElement({id = "ER", name = "Min enemies to use R", value = 1, min = 1, max = 5})
-
-
-                    -- JUNGLE CLEAR --
-                    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-                    self.shadowMenu.jungleclear:MenuElement({id = "Q", name = "Use Q in Jungle clear", value = true, leftIcon = Icons.Q})
-                    self.shadowMenu.jungleclear:MenuElement({id = "E", name = "Use E in Jungle clear", value = true, leftIcon = Icons.E})
-
-
-                    -- LANE CLEAR --
-                    self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Lane Clear"})
-                    self.shadowMenu.laneclear:MenuElement({id= "UseQLane", name = "Use Q in Lane Clear", value = true, leftIcon = Icons.Q})
-                    self.shadowMenu.laneclear:MenuElement({id= "UseELane", name = "Use E in Lane Clear", value = true, leftIcon = Icons.Q})
-
-
-                    -- KILL STEAL --
-                    self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-                    self.shadowMenu.killsteal:MenuElement({id = "killstealq", name = "Kill steal with Q", value = true, leftIcon = Icons.Q})
-
-                end
-                
-                function MonkeyKing:Draw()
-                    
-                end
-                
-                function MonkeyKing:Tick()
-                    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-                        return
-                    end
-                    self:killsteal()
-                    if orbwalker.Modes[0] then
-                        self:Combo()
-                    elseif orbwalker.Modes[3] then
-                        self:jungleclear()
-                        self:laneclear()
-                    end
-                end
-                
-                function MonkeyKing:killsteal()
-                    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                    if target and IsValid(target) then
-                      --  print(myHero:GetSpellData(_W).toggleState)
-                    local EnemyHealthThirty = target.health * .30
-                    local qdmg = (({20, 275, 400})[myHero:GetSpellData(_R).level or 1])
-                    if Ready(_R) and target and IsValid(target) and (target.health <= qdmg) and self.shadowMenu.killsteal.killstealq:Value() then
-                        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                        --print(Pred.Hitchance)
-                            --Control.CastSpell(HK_Q, target)
-                            self:CastQ(target)
-                    end
-                end
-                end
-                
-                
-                function MonkeyKing:Combo()
-                    local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                    if Ready(_Q) and target and IsValid(target) then
-                        if self.shadowMenu.combo.Q:Value() then
-                            self:CastQ(target)
-                        end
-                    end
-                    local target = TargetSelector:GetTarget(self.E.Range, 1)
-                    if Ready(_E) and target and IsValid(target) then
-                        if self.shadowMenu.combo.E:Value() then
-                            Control.CastSpell(HK_E, target)
-                            --self:CastSpell(HK_Etarget)
-                        end
-                    end
-
-                    local target = TargetSelector:GetTarget(self.R.Range, 1)
-                    if Ready(_R) and CountEnemiesNear(target, self.R.Range) >= self.shadowMenu.combo.ER:Value() and target and IsValid(target) then
-                        if self.shadowMenu.combo.R:Value() then
-                            self:CastR(target)
-                            --self:CastSpell(HK_Etarget)
-                        end
-                    end
-                end
-                
-                function MonkeyKing:jungleclear()
-                if self.shadowMenu.jungleclear.Q:Value() then 
-                    for i = 1, Game.MinionCount() do
-                        local obj = Game.Minion(i)
-                        if obj.team ~= myHero.team then
-                            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                                if Ready(_Q) and self.shadowMenu.jungleclear.Q:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
-                                    Control.CastSpell(HK_Q, obj);
-                                end
-                                if Ready(_E) and self.shadowMenu.jungleclear.E:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                    Control.CastSpell(HK_E, obj);
-                                end
-                            end
-                            end
-                        end
-                end
-                end
-        
-                function MonkeyKing:laneclear()
-                    for i = 1, Game.MinionCount() do
-                        local minion = Game.Minion(i)
-                        if minion.team ~= myHero.team then 
-                            local dist = myHero.pos:DistanceTo(minion.pos)
-                            if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
-                                Control.CastSpell(HK_Q, minion.pos)
-                            end
-                            if self.shadowMenu.laneclear.UseELane:Value() and Ready(_E) and dist <= self.E.Range then 
-                                Control.CastSpell(HK_E, minion.pos)
-                            end
-                        end
-                    end
-                end
-                
-                function MonkeyKing:CastQ(target)
-                    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-                        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                            Control.CastSpell(HK_Q, Pred.CastPosition)
-                            lastQ = GetTickCount()
-                        end
-                    end
-                end
-    
-        
-                
-                function MonkeyKing:CastR(target)
-                    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-                        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                        if CountEnemiesNear(target, myHero:GetSpellData(_R).range) >= self.shadowMenu.combo.ER:Value() then
-                            Control.CastSpell(HK_R)
-                            lastR = GetTickCount()
-                        end
-                    end
-                end
-                end
-            
-                if myHero.charName == "Gragas" then
-                    class "Gragas"
-                    function Gragas:__init()
-                        
-                        self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 100, Range = myHero:GetSpellData(_Q).range, Speed = 1000, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                        self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.75, Radius = 175, Range = myHero:GetSpellData(_W).range, Speed = 0, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                        self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 180, Range = myHero:GetSpellData(_E).range, Speed = 1400, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                        self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.55, Radius = 400, Range = myHero:GetSpellData(_R).range, Speed = 1000, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-                        
-        
-                        OnAllyHeroLoad(function(hero)
-                            Allys[hero.networkID] = hero
-                        end)
-                        
-                        OnEnemyHeroLoad(function(hero)
-                            Enemys[hero.networkID] = hero
-                        end)
-                        
-                        Callback.Add("Tick", function() self:Tick() end)
-                        Callback.Add("Draw", function() self:Draw() end)
-                        
-                        orbwalker:OnPreMovement(
-                            function(args)
-                                if lastMove + 180 > GetTickCount() then
-                                    args.Process = false
-                                else
-                                    args.Process = true
-                                    lastMove = GetTickCount()
-                                end
-                            end
-                        )
-                    end
-    
-                    local Icons = {
-                        ["WukongIcon"] = "https://cdn.discordapp.com/attachments/653578761228386317/676567302015287301/GragMain.png",
-                        ["Q"] = "https://cdn.discordapp.com/attachments/653578761228386317/676562902194585620/GragE.png",
-                        ["W"] = "https://cdn.discordapp.com/attachments/653578761228386317/676563180121489408/GragW.png",
-                        ["E"] = "https://cdn.discordapp.com/attachments/653578761228386317/676563389652402176/GragE2.png",
-                        ["R"] = "https://cdn.discordapp.com/attachments/653578761228386317/676563633244733482/GragR.png",
-                        ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
-                        }
-                    
-                    function Gragas:LoadMenu()
-                        self.shadowMenu = MenuElement({type = MENU, id = "shadowGragas", name = "Shadow Gragas", leftIcon = Icons["WukongIcon"]})
-    
-    
-                        -- COMBO --
-                        self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-                        self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
-                        self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
-                        self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
-                        self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
-                        self.shadowMenu.combo:MenuElement({id = "RSETTINGS", name = "[R]Ultimate Settings", type = MENU})
-                        self.shadowMenu.combo.RSETTINGS:MenuElement({id = "ER", name = "Min enemies to use R", value = 1, min = 1, max = 5,})
-                        self.shadowMenu.combo.RSETTINGS:MenuElement({id = "RKILL", name = "Only use ult if killable", value = true, leftIcon = Icons.R})
-    
-    
-                        -- JUNGLE CLEAR --
-                        self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-                        self.shadowMenu.jungleclear:MenuElement({id = "Q", name = "Use Q in Jungle clear", value = true, leftIcon = Icons.Q})
-                        self.shadowMenu.jungleclear:MenuElement({id = "W", name = "Use W in Jungle clear", value = true, leftIcon = Icons.W})
-                        self.shadowMenu.jungleclear:MenuElement({id = "E", name = "Use E in Jungle clear", value = true, leftIcon = Icons.E})
-    
-    
-                        -- LANE CLEAR --
-                        self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Lane Clear"})
-                        self.shadowMenu.laneclear:MenuElement({id= "UseQLane", name = "Use Q in Lane Clear", value = true, leftIcon = Icons.Q})
-    
-    
-                        -- KILL STEAL --
-                        self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-                        self.shadowMenu.killsteal:MenuElement({id = "killstealq", name = "Kill steal with Q", value = true, leftIcon = Icons.Q})
-                        self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
-    
-                    end
-                    
-                    function Gragas:Draw()
-                        
-                    end
-                    
-                    function Gragas:Tick()
-                        if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-                            return
-                        end
-                        self:killsteal()
-                        if orbwalker.Modes[0] then
-                            self:Combo()
-                        elseif orbwalker.Modes[3] then
-                            self:jungleclear()
-                            self:laneclear()
-                        end
-                    end
-                    
-                    function Gragas:killsteal()
-                        local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                        if target and IsValid(target) then
-                          --  print(myHero:GetSpellData(_W).toggleState)
-                        local EnemyHealthThirty = target.health * .30
-                        local qdmg = getdmg("Q", target, myHero)
-                        local rdmg = getdmg("R", target, myHero)
-                        if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() then
-                            local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                            --print(Pred.Hitchance)
-                                --Control.CastSpell(HK_Q, target)
-                                self:CastR(target)
-                        end
-                    end
-                    end
-                    
-                    
-                    function Gragas:Combo()
-                        local target = TargetSelector:GetTarget(self.E.Range, 1)
-                        if target == nil then return end
-                        if Ready(_E) and target and IsValid(target) then
-                            if self.shadowMenu.combo.E:Value() then
-                                Control.CastSpell(HK_E, target)
-                                --self:CastSpell(HK_Etarget)
-                            end
-                        end
-
-                        local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                        local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                        if target == nil then return end
-                        if Ready(_Q) and target and IsValid(target) then
-                            if self.shadowMenu.combo.Q:Value() then
-                                self:CastQ(target)
-                            end
-                        end
-
-                        local target = TargetSelector:GetTarget(self.Q.Range, 1)
-                        if Ready(_W) and target and IsValid(target) then
-                            if self.shadowMenu.combo.W:Value() then
-                                Control.CastSpell(HK_W)
-                                --self:CastSpell(HK_Etarget)
-                            end
-                        end
-                        if self.shadowMenu.combo.RSETTINGS.RKILL:Value() then
-                        local target = TargetSelector:GetTarget(self.R.Range, 1)
-                        if Ready(_R) and target and IsValid(target) then
-                            local RDMG = getdmg("R", target, myHero)
-                            --print(target.health)
-                            if self.shadowMenu.combo.R:Value() and target.health < RDMG then
-                                self:CastR(target)
-                                --self:CastSpell(HK_Etarget)
-                            end
-                        end
-                    end
-                    
-                function Gragas:jungleclear()
-                    if self.shadowMenu.jungleclear.Q:Value() then 
-                        for i = 1, Game.MinionCount() do
-                            local obj = Game.Minion(i)
-                            if obj.team ~= myHero.team then
-                                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                                    if Ready(_Q) and self.shadowMenu.jungleclear.Q:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
-                                        Control.CastSpell(HK_Q, obj);
-                                    end
-                                    if Ready(_E) and self.shadowMenu.jungleclear.E:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                        Control.CastSpell(HK_E, obj);
-                                    end
-                                    if Ready(_W) and self.shadowMenu.jungleclear.W:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
-                                        Control.CastSpell(HK_W);
-                                    end
-                                end
-                                end
-                            end
-                    end
-                end
-            
-                    function Gragas:laneclear()
-                        for i = 1, Game.MinionCount() do
-                            local minion = Game.Minion(i)
-                            if minion.team ~= myHero.team then 
-                                local dist = myHero.pos:DistanceTo(minion.pos)
-                                if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
-                                    Control.CastSpell(HK_Q, minion.pos)
-                                end
-                            end
-                        end
-                    end
-                    
-                    function Gragas:CastQ(target)
-                        if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
-                            local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                            if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                                Control.CastSpell(HK_Q, Pred.CastPosition)
-                                lastQ = GetTickCount()
-                            end
-                        end
-                    end
-
-                    function Gragas:CastE(target)
-                        if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
-                            local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
-                            if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                                Control.CastSpell(HK_E, Pred.CastPosition)
-                                lastQ = GetTickCount()
-                            end
-                        end
-                    end
-        
-                    function Gragas:CastR(target)
-                        if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-                            local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                            if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-                                Control.CastSpell(HK_R, Pred.CastPosition)
-                                lastR = GetTickCount()
-                            end
-                        end
-                    end
-                end
-            end
-
-        local Heroes = {"JarvanIV"}
-        if not table.contains(Heroes, myHero.charName) then return end
-                
-        
-        
-        class "JarvanIV"
-        function JarvanIV:__init()
-            
-            self.Q = {Type = _G.SPELLTYPE_LINE, Range = 770, Radius = 90}
-            self.W = {Type = _G.SPELLTYPE_CIRCLE, Radius = 625, Range = 10}
-            self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 860, Radius = 175}
-            self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 650, Radius = 325}
-
-            
-
-            OnAllyHeroLoad(function(hero)
-                Allys[hero.networkID] = hero
-            end)
-            
-            OnEnemyHeroLoad(function(hero)
-                Enemys[hero.networkID] = hero
-            end)
-                                              --- you need Load here your Menu        
-            Callback.Add("Tick", function() self:Tick() end)
-            Callback.Add("Draw", function() self:Draw() end)
-            
-            orbwalker:OnPreMovement(function(args)
-                if lastMove + 180 > GetTickCount() then
-                    args.Process = false
-                else
-                    args.Process = true
-                    lastMove = GetTickCount()
-                end
-            end)
-        end
-        
-        local function CheckFlag(unit, range)
-            for i = 0, Game.ObjectCount() do
-                local object = Game.Object(i) 
-                --print(object.name)
-                if object and GetDistanceSqr(object.pos, unit.pos) < range and object.charName == "JarvanIVDamacianStandard" and GetDistanceSqr(object.pos, myHero.pos) < 770 then
-                    return true, object.pos
-                    end    
-                end    
-            return false 
         end
 
-        local Icons = {
-            ["JarvanIVIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4c/Jarvan_IV_OriginalSquare.png",
-            ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4c/Dragon_Strike.png",
-            ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f8/Golden_Aegis.png",
-            ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/65/Demacian_Standard.png",
-            ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/cf/Cataclysm.png",
-            ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
-            }
-        
-        function JarvanIV:LoadMenu()
-            self.shadowMenu = MenuElement({type = MENU, id = "shadowJarvanIV", name = "Shadow JarvanIV", leftIcon = Icons["JarvanIVIcon"]})
-
-
-            -- COMBO --
-            self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-            self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
-            self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
-            self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
-            self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
-            self.shadowMenu.combo:MenuElement({id = "RSETTINGS", name = "[R]Ultimate Settings", type = MENU})
-            self.shadowMenu.combo.RSETTINGS:MenuElement({id = "ER", name = "Min enemies to use R", value = 1, min = 1, max = 5,})
-            self.shadowMenu.combo.RSETTINGS:MenuElement({id = "RKILL", name = "Only use ult if killable", value = true, leftIcon = Icons.R})
-
-
-            -- JUNGLE CLEAR --
-            self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
-            self.shadowMenu.jungleclear:MenuElement({id = "Q", name = "Use Q in Jungle clear", value = true, leftIcon = Icons.Q})
-            self.shadowMenu.jungleclear:MenuElement({id = "W", name = "Use W in Jungle clear", value = true, leftIcon = Icons.W})
-            self.shadowMenu.jungleclear:MenuElement({id = "E", name = "Use E in Jungle clear", value = true, leftIcon = Icons.E})
-
-             -- JUNGLE KILLSTEAL --
-            self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
-            self.shadowMenu.junglekillsteal:MenuElement({id = "Q", name = "Use Q in Jungle Steal", value = true, leftIcon = Icons.Q})
-            self.shadowMenu.junglekillsteal:MenuElement({id = "E", name = "Use E in Jungle Steal", value = true, leftIcon = Icons.E})
-
-
-            -- LANE CLEAR --
-            self.shadowMenu:MenuElement({type = MENU, id = "laneclear", name = "Lane Clear"})
-            self.shadowMenu.laneclear:MenuElement({id= "UseQLane", name = "Use Q in Lane Clear", value = true, leftIcon = Icons.Q})
-
-
-            -- KILL STEAL --
-            self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-            self.shadowMenu.killsteal:MenuElement({id = "killstealq", name = "Kill steal with Q", value = true, leftIcon = Icons.Q})
-            self.shadowMenu.killsteal:MenuElement({id = "killsteale", name = "Kill steal with E", value = true, leftIcon = Icons.E})
-            self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
-
-        end
-        
-        function JarvanIV:Draw()
-            
-        end
-        
-        function JarvanIV:Tick()
-            if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
-                return
-            end
-            self:killsteal()
-            self:junglekillsteal()
-            if orbwalker.Modes[0] then
-                self:Combo()
-            elseif orbwalker.Modes[3] then
-                self:jungleclear()
-                self:laneclear()
-            end
-        end
-        
-        function JarvanIV:killsteal()
-            local target = TargetSelector:GetTarget(self.R.Range, 1)
-            if target and IsValid(target) then       
-            local qdmg = getdmg("Q", target, myHero)
-            local rdmg = getdmg("R", target, myHero)
-                if Ready(_R) and target and IsValid(target) and (target.health <= rdmg) and self.shadowMenu.killsteal.killstealr:Value() then
-                    self:CastR(target)
-                end
-                if Ready(_Q) and target and IsValid(target) and (target.health <= qdmg) and self.shadowMenu.killsteal.killstealq:Value() then
-                    self:CastQ(target)
-                end
-            end
-        end
-        
-        
-        function JarvanIV:Combo()
-            local target = TargetSelector:GetTarget(self.E.Range, 1)
-            if target == nil then return end
-            local posBehind = myHero.pos:Extended(target.pos, target.distance + 200)
-            if Ready(_E) and Ready(_Q) and target and IsValid(target) then
-                if self.shadowMenu.combo.E:Value() then
-                    self:CastE(target)
-                    --self:CastSpell(HK_Etarget)
-                end
-            end
-
-            local target = TargetSelector:GetTarget(self.Q.Range, 1)
-            if target == nil then return end
-            if Ready(_Q) and target and IsValid(target) then
-                if self.shadowMenu.combo.Q:Value() then
-                        Control.CastSpell(HK_Q, target)
-                end    
-            end
-
-            local target = TargetSelector:GetTarget(self.W.Range, 1)
-            if target == nil then return end
-            if Ready(_W) and target and IsValid(target) then
-                if self.shadowMenu.combo.W:Value() then
-                    Control.CastSpell(HK_W)
-                    --self:CastSpell(HK_Etarget)
-                end														---- you have "end" forget
-            end
-            if self.shadowMenu.combo.RSETTINGS.RKILL:Value() then
-                local target = TargetSelector:GetTarget(self.R.Range, 1)
-                if target == nil then return end
-                if Ready(_R) and target and IsValid(target) then
-                local RDMG = getdmg("R", target, myHero)
-                    if self.shadowMenu.combo.R:Value() and target.health < RDMG then
-                        self:CastR(target)
-                        --self:CastSpell(HK_Etarget)
-                    end
-                end														---- you have "end" forget
-            end
-        end
-        
-        function JarvanIV:jungleclear()
-            if self.shadowMenu.jungleclear.Q:Value() then 
-                for i = 1, Game.MinionCount() do
-                    local obj = Game.Minion(i)
-                    if obj.team ~= myHero.team then
-                        if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                            if Ready(_E) and self.shadowMenu.jungleclear.E:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < self.E.Range + myHero.boundingRadius then
-                                Control.CastSpell(HK_E, obj);
-                            end
-
-                            if Ready(_Q) and self.shadowMenu.jungleclear.Q:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
-                                Control.CastSpell(HK_Q, obj);
-                            end
-                            if Ready(_W) and self.shadowMenu.jungleclear.W:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < self.W.Range + myHero.boundingRadius then
-                                Control.CastSpell(HK_W);
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        function JarvanIV:junglekillsteal()
-            if self.shadowMenu.junglekillsteal.Q:Value() then 
-                for i = 1, Game.MinionCount() do
-                    local obj = Game.Minion(i)
-                    if obj.team ~= myHero.team then
-                        if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                            local qdmg = getdmg("Q", obj, myHero, 1)
-                            local edmg = getdmg("Q", obj, myHero, 1)
-                            if Ready(_E) and self.shadowMenu.junglekillsteal.E:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < self.E.Range + myHero.boundingRadius and obj.health < qdmg then
-                                Control.CastSpell(HK_E, obj);
-                            end
-                            if Ready(_Q) and self.shadowMenu.junglekillsteal.Q:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range and obj.health < edmg) then
-                                Control.CastSpell(HK_Q, obj);
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        function JarvanIV:laneclear()
+        function Blitzcrank:laneclear()
             for i = 1, Game.MinionCount() do
                 local minion = Game.Minion(i)
                 if minion.team ~= myHero.team then 
@@ -2432,36 +1384,931 @@ if myHero.charName == "Graves" then
                     if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
                         Control.CastSpell(HK_Q, minion.pos)
                     end
+
                 end
             end
         end
-       
-        function JarvanIV:CastQ(target)
+        
+        function Blitzcrank:CastQ(target)
             if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
                 local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-                if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+                if Pred.Hitchance >= _G.HITCHANCE_HIGH then
                     Control.CastSpell(HK_Q, Pred.CastPosition)
                     lastQ = GetTickCount()
                 end
             end
         end
 
-        function JarvanIV:CastE(target)
-            if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
-                local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
-                if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-                    Control.CastSpell(HK_E, Pred.CastPosition)
-                    lastQ = GetTickCount()
-                end
-            end
-        end
 
-        function JarvanIV:CastR(target)
+        
+        function Blitzcrank:CastR(target)
             if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
                 local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-                if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+                if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
                     Control.CastSpell(HK_R, Pred.CastPosition)
                     lastR = GetTickCount()
                 end
             end
         end
+--[[
+        _   _   _   _  
+        / \ / \ / \ / \ 
+    ( N | A | M | I )
+        \_/ \_/ \_/ \_/ 
+]]
+
+class "Nami"
+function Nami:__init()
+    
+    self.Q = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 0, Range = 875, Speed = 1750, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO, _G.COLLISION_YASUOWALL}}
+    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 0, Range = 725, Speed = 1800, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_ENEMYHERO, _G.COLLISION_YASUOWALL}}
+    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 800, Range = 800, Speed = 1800, Collision = false}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 325, Range = 2750, Speed = 1200, Collision = false}
+    
+
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(
+        function(args)
+            if lastMove + 180 > GetTickCount() then
+                args.Process = false
+            else
+                args.Process = true
+                lastMove = GetTickCount()
+            end
+        end
+    )
+end
+
+local Icons = {
+    ["NamiIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/d/dd/Nami_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/cb/Aqua_Prison.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/48/Ebb_and_Flow.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/a4/Tidecaller%27s_Blessing.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/2e/Tidal_Wave.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+
+function Nami:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowNami", name = "Shadow Nami", leftIcon = Icons.NamiIcon})
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use [Q] in Combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "W", name = "Use [W] on Ally", value = true, leftIcon = Icons.W})
+    self.shadowMenu.combo:MenuElement({id = "wonAlly", name = "Use [W] in Combo", value = true, leftIcon = Icons.W})
+    self.shadowMenu.combo:MenuElement({id = "E", name = "Use [E] in  Combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "eonAlly", name = "Use [E] on Ally", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "R", name = "Use [R] in  Combo", value = true, leftIcon = Icons.R})
+
+    -- AUTO R --
+    self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+    self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+    self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies around", value = 1, min = 1, max = 5, identifier = "#"})
+
+    -- SUMMONER SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+    end
+
+    
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+    end
+
+end
+
+
+function Nami:Draw()
+    
+end
+
+function Nami:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    self:AutoSummoners()
+    self:AutoW()
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+    end
+end
+
+
+function Nami:AutoSummoners()
+
+    -- IGNITE --
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target and IsValid(target) then
+    local ignDmg = getdmg("IGNITE", target, myHero)
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+        Control.CastSpell(HK_SUMMONER_1, target)
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+        Control.CastSpell(HK_SUMMONER_2, target)
+    end
+
+
+end
+
+function Nami:AutoW()
+
+
+
+end
+
+
+end
+function Nami:Combo()
+
+    local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.Q:Value() then
+            self:CastQ(target)
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if Ready(_W) and target and IsValid(target) then               
+        if self.shadowMenu.combo.W:Value() then
+            Control.CastSpell(HK_W, target)
+        end
+    end
+
+
+
+
+    
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.E:Value() then
+            Control.CastSpell(HK_E, myHero.pos)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if Ready(_R) and target and IsValid(target) then
+        if self.shadowMenu.combo.R:Value() then
+            self:CastR(target)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+
+end
+
+function Nami:jungleclear()
+if self.shadowMenu.jungleclear.UseQ:Value() then 
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
+                    Control.CastSpell(HK_Q, obj);
+                end
+                if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.CastSpell(HK_E);
+                end
+                if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.KeyDown(HK_W);
+                end
+            end
+            end
+        end
+end
+end
+
+
+function Nami:laneclear()
+    for i = 1, Game.MinionCount() do
+        local minion = Game.Minion(i)
+        if minion.team ~= myHero.team then 
+            local dist = myHero.pos:DistanceTo(minion.pos)
+            if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
+                Control.CastSpell(HK_Q, minion.pos)
+            end
+
+        end
+    end
+end
+
+function Nami:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
+
+
+function Nami:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+--[[
+_   _   _   _  
+/ \ / \ / \ / \ 
+( S | O | N | A )
+\_/ \_/ \_/ \_/ 
+]]
+class "Sona"
+function Sona:__init()
+    
+    self.Q = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 0, Range = 825, Speed = 1500, Collision = false}
+    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 0, Range = 1000, Speed = 1500, Collision = false}
+    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 0, Range = 430, Speed = 1500, Collision = false}
+    self.R = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 140, Range = 900, Speed = 2400, Collision = true, MaxCollision = 3, CollisionTypes = {_G.COLLISION_YASUOWALL}}
+    
+
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)
+    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(
+        function(args)
+            if lastMove + 180 > GetTickCount() then
+                args.Process = false
+            else
+                args.Process = true
+                lastMove = GetTickCount()
+            end
+        end
+    )
+end
+
+local Icons = {
+    ["SonaIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/fb/Sona_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e1/Hymn_of_Valor.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/99/Aria_of_Perseverance.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/76/Song_of_Celerity.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/b1/Crescendo.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+
+function Sona:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowSona", name = "Shadow Sona", leftIcon = Icons.SonaIcon})
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = false, leftIcon = Icons.W})
+    self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+
+    -- AUTO R --
+    self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+    self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+    self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies around", value = 1, min = 1, max = 5, identifier = "#"})
+
+    -- AUTO W -- 
+    self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W Settings"})
+    self.shadowMenu.autow:MenuElement({id = "useautow", name = "Use auto [W] on ally?", value = true})
+
+    -- SUMMONER SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+    end
+
+    
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+    end
+
+end
+
+
+function Sona:Draw()
+    
+end
+
+function Sona:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    self:AutoR()
+    self:AutoSummoners()
+    self:AutoW()
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+    end
+end
+
+
+function Sona:AutoSummoners()
+
+    -- IGNITE --
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target and IsValid(target) then
+    local ignDmg = getdmg("IGNITE", target, myHero)
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+        Control.CastSpell(HK_SUMMONER_1, target)
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+        Control.CastSpell(HK_SUMMONER_2, target)
+    end
+
+
+end
+
+function Sona:AutoW()
+local target = TargetSelector:GetTarget(800)     	
+if target == nil then return end	
+
+if self.shadowMenu.autow.useautow:Value() and Ready(_W) then
+    for i, ally in pairs(GetAllyHeroes()) do
+        if self.shadowMenu.autow.useautow:Value() and IsValid(ally,1000) and myHero.pos:DistanceTo(ally.pos) <= 1000 and ally.health < ally.maxHealth then
+            Control.CastSpell(HK_W, ally)
+        end
+    end
+end
+end
+
+
+end
+function Sona:Combo()
+    local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.Q:Value() then
+            self:CastQ(target)
+        end
+    end
+    local target = TargetSelector:GetTarget(2000, 1)
+    if Ready(_W) and target and IsValid(target) then
+        local d = myHero.pos:DistanceTo(target.pos)
+        if self.shadowMenu.combo.W:Value() and d >= 1150 then
+            Control.KeyDown(HK_W)
+        end
+    end
+    
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.E:Value() then
+            Control.CastSpell(HK_E)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+
+end
+
+function Sona:jungleclear()
+if self.shadowMenu.jungleclear.UseQ:Value() then 
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
+                    Control.CastSpell(HK_Q, obj);
+                end
+                if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.CastSpell(HK_E);
+                end
+                if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.KeyDown(HK_W);
+                end
+            end
+            end
+        end
+end
+end
+
+function Sona:AutoR()
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target and IsValid(target) then
+        if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 900) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
+            self:CastR(target)
+        end
+    end
+end
+
+function Sona:laneclear()
+    for i = 1, Game.MinionCount() do
+        local minion = Game.Minion(i)
+        if minion.team ~= myHero.team then 
+            local dist = myHero.pos:DistanceTo(minion.pos)
+            if self.shadowMenu.laneclear.UseQLane:Value() and Ready(_Q) and dist <= self.Q.Range then 
+                Control.CastSpell(HK_Q, minion.pos)
+            end
+
+        end
+    end
+end
+
+function Sona:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
+
+
+function Sona:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+--[[
+_   _   _   _   _  
+/ \ / \ / \ / \ / \ 
+( B | R | A | U | M )
+\_/ \_/ \_/ \_/ \_/ 
+]]
+class "Braum"
+function Braum:__init()
+
+self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 70, Range = 1000, Speed = 1100, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_YASUOWALL, _G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
+self.R = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 80, Range = 1250, Speed = 1200, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_YASUOWALL}}
+
+
+OnAllyHeroLoad(function(hero)
+    Allys[hero.networkID] = hero
+end)
+
+OnEnemyHeroLoad(function(hero)
+    Enemys[hero.networkID] = hero
+end)
+
+Callback.Add("Tick", function() self:Tick() end)
+Callback.Add("Draw", function() self:Draw() end)
+
+orbwalker:OnPreMovement(
+    function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end
+)
+end
+
+local Icons = {
+["BraumIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/28/Braum_OriginalSquare.png",
+["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c2/Winter%27s_Bite.png",
+["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/91/Stand_Behind_Me.png",
+["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/ef/Unbreakable.png",
+["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/44/Glacial_Fissure.png",
+["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+}
+
+
+function Braum:LoadMenu()
+self.shadowMenu = MenuElement({type = MENU, id = "shadowBraum", name = "Shadow Braum", leftIcon = Icons.BraumIcon})
+
+-- COMBO --
+self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = false, leftIcon = Icons.W})
+self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+self.shadowMenu.combo:MenuElement({id = "userammount", name = "Activate [R] when x enemies around", value = 1, min = 1, max = 5, identifier = "#"})
+
+-- AUTO R --
+self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies around", value = 1, min = 1, max = 5, identifier = "#"})
+
+-- AUTO W -- 
+self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto Jump on Ally Settings"})
+self.shadowMenu.autow:MenuElement({id = "useautow", name = "Use auto [W] and [E] on ally?", value = true})
+self.shadowMenu.autow:MenuElement({id = "useautowhp", name = "Use auto [W] and [E] on ally hp %", value = 30, min = 0, max = 100, identifier = "%"})
+
+-- DRAWING SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+self.shadowMenu.drawings:MenuElement({id = "drawAutoR", name = "Draw if auto [R] is on", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawAutoWE", name = "Draw if auto [W] and [E] on Ally is on", value = true})
+
+
+-- SUMMONER SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+end
+
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+end
+
+end
+
+
+function Braum:Draw()
+
+if self.shadowMenu.drawings.drawAutoR:Value() then
+    Draw.Text("Auto Cast R: ", 15, 5, 30, Draw.Color(255, 225, 255, 0))
+        if self.shadowMenu.autor.useautor:Value() then
+            Draw.Text("ON", 15, 85, 30, Draw.Color(255, 0, 255, 0))
+            else
+                Draw.Text("OFF", 15, 85, 30, Draw.Color(255, 255, 0, 0))
+        end 
+end
+
+if self.shadowMenu.drawings.drawAutoWE:Value() then
+    Draw.Text("Auto Jump on Ally: ", 15, 5, 60, Draw.Color(255, 225, 255, 0))
+        if self.shadowMenu.autow.useautow:Value() then
+            Draw.Text("ON", 15, 115, 60, Draw.Color(255, 0, 255, 0))
+            else
+            Draw.Text("OFF", 15, 115, 60, Draw.Color(255, 255, 0, 0))
+        end 
+end
+
+end
+
+function Braum:Tick()
+if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+    return
+end
+self:AutoR()
+self:AutoSummoners()
+self:AutoW()
+if orbwalker.Modes[0] then
+    self:Combo()
+elseif orbwalker.Modes[3] then
+end
+end
+
+
+function Braum:AutoSummoners()
+
+-- IGNITE --
+local target = TargetSelector:GetTarget(self.Q.Range, 1)
+if target and IsValid(target) then
+local ignDmg = getdmg("IGNITE", target, myHero)
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+    Control.CastSpell(HK_SUMMONER_1, target)
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+    Control.CastSpell(HK_SUMMONER_2, target)
+end
+
+
+end
+
+function Braum:AutoW()
+local target = TargetSelector:GetTarget(800)     	
+if target == nil then return end	
+
+if self.shadowMenu.autow.useautow:Value() and Ready(_W) then
+for i, ally in pairs(GetAllyHeroes()) do
+    if self.shadowMenu.autow.useautow:Value() and IsValid(ally,1000) and myHero.pos:DistanceTo(ally.pos) <= 1000 and ally.health / ally.maxHealth < self.shadowMenu.autow.useautowhp:Value() / 100 then
+        Control.CastSpell(HK_W, ally)
+        Control.KeyDown(HK_E)
+    end
+end
+end
+end
+
+
+end
+function Braum:Combo()
+local QPred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+local target = TargetSelector:GetTarget(self.Q.Range, 1)
+if Ready(_Q) and target and IsValid(target) then
+    if self.shadowMenu.combo.Q:Value() then
+        self:CastQ(target)
+    end
+end
+local target = TargetSelector:GetTarget(2000, 1)
+if Ready(_W) and target and IsValid(target) then
+    local d = myHero.pos:DistanceTo(target.pos)
+    if self.shadowMenu.combo.W:Value() and d >= 1150 then
+        Control.KeyDown(HK_W)
+    end
+end
+
+local target = TargetSelector:GetTarget(self.Q.Range, 1)
+if Ready(_E) and target and IsValid(target) then
+    if self.shadowMenu.combo.E:Value() then
+        Control.CastSpell(HK_E)
+        --self:CastSpell(HK_Etarget)
+    end
+end
+
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+if target and IsValid(target) then
+    if self.shadowMenu.combo.R:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.combo.userammount:Value() and Ready(_R) then
+        self:CastR(target)
+    end
+end
+
+end
+
+function Braum:jungleclear()
+if self.shadowMenu.jungleclear.UseQ:Value() then 
+for i = 1, Game.MinionCount() do
+    local obj = Game.Minion(i)
+    if obj.team ~= myHero.team then
+        if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+            if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
+                Control.CastSpell(HK_Q, obj);
+            end
+            if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                Control.CastSpell(HK_E);
+            end
+            if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                Control.KeyDown(HK_W);
+            end
+        end
+        end
+    end
+end
+end
+
+function Braum:AutoR()
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+if target and IsValid(target) then
+    if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
+        self:CastR(target)
+    end
+end
+end
+
+
+function Braum:CastQ(target)
+if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+    local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+        Control.CastSpell(HK_Q, Pred.CastPosition)
+        lastQ = GetTickCount()
+    end
+end
+end
+
+
+
+function Braum:CastR(target)
+if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+    local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+        Control.CastSpell(HK_R, Pred.CastPosition)
+        lastR = GetTickCount()
+    end
+end
+end
+--[[
+_   _   _   _   _  
+/ \ / \ / \ / \ / \ 
+( T | A | R | I | C )
+\_/ \_/ \_/ \_/ \_/ 
+]]
+class "Leona"
+function Leona:__init()
+
+self.Q = {Type = _G.SPELLTYPE_CIRCLE, Range = 100}
+self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 3, Range = 450, Speed = 828.5}
+self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 1200, Speed = 20}
+self.R = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 80, Range = 1250, Speed = 1200, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_YASUOWALL}}
+
+
+OnAllyHeroLoad(function(hero)
+    Allys[hero.networkID] = hero
+end)
+
+OnEnemyHeroLoad(function(hero)
+    Enemys[hero.networkID] = hero
+end)
+
+Callback.Add("Tick", function() self:Tick() end)
+Callback.Add("Draw", function() self:Draw() end)
+
+orbwalker:OnPreMovement(
+    function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end
+)
+end
+
+local Icons = {
+["LeonaIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/b/ba/Leona_OriginalSquare.png",
+["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c6/Shield_of_Daybreak.png",
+["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c5/Eclipse.png",
+["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/91/Zenith_Blade.png",
+["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/5/5c/Solar_Flare.png",
+["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+}
+
+
+function Leona:LoadMenu()
+self.shadowMenu = MenuElement({type = MENU, id = "shadowLeona", name = "Shadow Leona", leftIcon = Icons.LeonaIcon})
+
+-- COMBO --
+self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = false, leftIcon = Icons.W})
+self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+self.shadowMenu.combo:MenuElement({id = "userammount", name = "Activate [R] when x enemies hit", value = 1, min = 1, max = 5, identifier = "#"})
+
+-- AUTO R --
+self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies hit", value = 1, min = 1, max = 5, identifier = "#"})
+
+
+-- DRAWING SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+self.shadowMenu.drawings:MenuElement({id = "drawAutoR", name = "Draw if auto [R] is on", value = true})
+
+
+-- SUMMONER SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+end
+
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+end
+
+end
+
+
+function Leona:Draw()
+
+if self.shadowMenu.drawings.drawAutoR:Value() then
+    Draw.Text("Auto Cast R: ", 15, 5, 30, Draw.Color(255, 225, 255, 0))
+        if self.shadowMenu.autor.useautor:Value() then
+            Draw.Text("ON", 15, 85, 30, Draw.Color(255, 0, 255, 0))
+            else
+                Draw.Text("OFF", 15, 85, 30, Draw.Color(255, 255, 0, 0))
+        end 
+end
+
+end
+
+function Leona:Tick()
+if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+    return
+end
+self:AutoR()
+self:AutoSummoners()
+if orbwalker.Modes[0] then
+    self:Combo()
+elseif orbwalker.Modes[3] then
+end
+end
+
+
+function Leona:AutoSummoners()
+
+-- IGNITE --
+local target = TargetSelector:GetTarget(self.Q.Range, 1)
+if target and IsValid(target) then
+local ignDmg = getdmg("IGNITE", target, myHero)
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+    Control.CastSpell(HK_SUMMONER_1, target)
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+    Control.CastSpell(HK_SUMMONER_2, target)
+end
+end
+
+
+end
+function Leona:Combo()
+local EPred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+local target = TargetSelector:GetTarget(self.E.Range, 1)
+if Ready(_E) and target and IsValid(target) then
+    if self.shadowMenu.combo.E:Value() then
+        self:CastE(target)
+    end
+end
+local target = TargetSelector:GetTarget(self.Q.Range, 1)
+if Ready(_Q) and target and IsValid(target) then
+    if self.shadowMenu.combo.Q:Value() then
+        Control.KeyDown(HK_Q)
+    end
+end
+
+local target = TargetSelector:GetTarget(self.W.Range, 1)
+if Ready(_W) and target and IsValid(target) then
+    if self.shadowMenu.combo.W:Value() then
+        Control.CastSpell(HK_W)
+        --self:CastSpell(HK_Etarget)
+    end
+end
+
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+if target and IsValid(target) then
+    if self.shadowMenu.combo.R:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.combo.userammount:Value() and Ready(_R) then
+        self:CastR(target)
+    end
+end
+
+end
+
+function Leona:jungleclear()
+if self.shadowMenu.jungleclear.UseQ:Value() then 
+for i = 1, Game.MinionCount() do
+    local obj = Game.Minion(i)
+    if obj.team ~= myHero.team then
+        if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+            if Ready(_Q) and self.shadowMenu.jungleclear.UseQ:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < 800) then
+                Control.CastSpell(HK_Q, obj);
+            end
+            if Ready(_E) and self.shadowMenu.jungleclear.UseE:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                Control.CastSpell(HK_E);
+            end
+            if Ready(_W) and self.shadowMenu.jungleclear.UseW:Value() and myHero:GetSpellData(_W).toogleState ~= 2 and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                Control.KeyDown(HK_W);
+            end
+        end
+        end
+    end
+end
+end
+
+function Leona:AutoR()
+local target = TargetSelector:GetTarget(self.R.Range, 1)
+if target and IsValid(target) then
+    if self.shadowMenu.autor.useautor:Value() and CountEnemiesNear(target, 1250) >= self.shadowMenu.autor.autorammount:Value() and Ready(_R) then
+        self:CastR(target)
+    end
+end
+end
+
+function Leona:CastE(target)
+if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+    local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+        Control.CastSpell(HK_E, Pred.CastPosition)
+        lastE = GetTickCount()
+    end
+end
+end
+
+
+function Leona:CastR(target)
+if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+    local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+    if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+        Control.CastSpell(HK_R, Pred.CastPosition)
+        lastR = GetTickCount()
+    end
+end
+end
+
