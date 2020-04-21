@@ -34,7 +34,7 @@ local ItemHotKey = {[ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2,[ITEM_3] = HK_ITE
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.2
+    local Version = 0.3
     
     local Files = {
         Lua = {
@@ -88,7 +88,17 @@ Callback.Add("Load", function()
         print("Requires GamsteronPrediction please download the file thanks!");
         return
     end
+
+    if FileExist(COMMON_PATH .. "PremiumPrediction.lua") then
+        require('PremiumPrediction');
+    else
+        print("Requires PremiumPrediction please download the file thanks!");
+        return
+    end
+
     require('damagelib')
+    --require('PremiumPrediction')
+    --require('2DGeometry')
 
     local _IsHero = _G[myHero.charName]();
     _IsHero:LoadMenu();
@@ -1009,7 +1019,7 @@ function DrMundo:LoadMenu()
 
     -- AUTO Q --
     self.shadowMenu:MenuElement({type = MENU, id = "autoq", name = "Auto Q"})
-    self.shadowMenu.autow:MenuElement({id = "useq", name = "Use [Q] automatically", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.autoq:MenuElement({id = "useq", name = "Use [Q] automatically", value = true, leftIcon = Icons.Q})
     self.shadowMenu.autoq:MenuElement({id = "useqmanual", name = "Use [Q] on keydown", key = string.byte("T"), value = true})
 
 
@@ -1017,12 +1027,31 @@ function DrMundo:LoadMenu()
     self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
     self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
     self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usew", name = "Use [W] in clear", value = true})
 
+    -- AUTO R --
+    self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+    self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R] ?", value = true, leftIcon = Icons.R})
+    self.shadowMenu.autor:MenuElement({id = "autorhp", name = "Activate R when at what % HP", value = 30, min = 0, max = 100, identifier = "%"})
 
     -- DRAWING SETTINGS --
     self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
     self.shadowMenu.drawings:MenuElement({id = "drawAutoQ", name = "Draw if auto [Q] is on", value = true})
     self.shadowMenu.drawings:MenuElement({id = "drawManualQ", name = "Draw if manual [Q] is on", value = true})
+
+    -- SUMMONER SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+    end
+
+    if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+    elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+        self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+    end
 
 end
 
@@ -1044,8 +1073,9 @@ function DrMundo:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
-    self:autoW()
-    self:autoR()
+    self:AutoR()
+    self:autoQ()
+    self:AutoSummoners()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
@@ -1055,28 +1085,41 @@ function DrMundo:Tick()
     end
 end
 
+function DrMundo:AutoR()
+    local decimalhealthstring = "." .. self.shadowMenu.autor.autorhp:Value()
+    local decimalhealth = myHero.maxHealth * decimalhealthstring
+
+    if self.shadowMenu.autor.useautor:Value() and myHero.health <= decimalhealth and Ready(_R) then
+        Control.CastSpell(HK_R)
+    end
+end
+
+function DrMundo:AutoSummoners()
+    -- IGNITE --
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target and IsValid(target) then
+        local ignDmg = getdmg("IGNITE", target, myHero)
+        if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_1, target)
+        elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_2, target)
+        end
+    end
+end
+
 
 function DrMundo:autoQ()
     local target = TargetSelector:GetTarget(self.Q.Range, 1)
     if target and IsValid(target) then
         if self.shadowMenu.autoq.useq:Value() and Ready(_Q) then
-            if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
-                self:CastQ(target)
-            end
+            self:CastQ(target)
         end
-    end
-end
 
-function DrMundo:autoR()
-local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if target and IsValid(target)then
-        local rdmg = getdmg("R", target, myHero)
-        if self.shadowMenu.autor.user:Value() and Ready(_R) then
-            if self.shadowMenu.autor.useronks:Value() and rdmg > target.health then
-                self:CastR(target)
-            end
+        if self.shadowMenu.autoq.useqmanual:Value() and Ready(_Q) then
+            self:CastQ(target)
         end
     end
+
 end
 
 function DrMundo:jungleclear()
@@ -1088,8 +1131,11 @@ function DrMundo:jungleclear()
                     if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
                         Control.CastSpell(HK_Q, obj)
                     end
-                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.E.Range) then
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
                         Control.CastSpell(HK_E);
+                    end
+                    if Ready(_W) and myHero:GetSpellData(_W).toogleState ~= 2 and self.shadowMenu.jungleclear.usew:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.W.Range) then
+                        Control.CastSpell(HK_W);
                     end
                 end
             end
@@ -1108,11 +1154,19 @@ function DrMundo:Combo()
         end														
     end
 
-    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then return end
+    if Ready(_W) and target and IsValid(target) and myHero:GetSpellData(_W).toogleState ~= 2 then
+        if self.shadowMenu.combo.usew:Value() then
+           Control.KeyDown(HK_W)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
     if target == nil then return end
     if Ready(_E) and target and IsValid(target) then
         if self.shadowMenu.combo.usee:Value() then
-           self:CastE(target)
+           Control.CastSpell(HK_E)
         end														
     end
 
@@ -1131,7 +1185,7 @@ end
 function DrMundo:CastQ(target)
     if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
         local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
             Control.CastSpell(HK_Q, Pred.CastPosition)
             lastQ = GetTickCount()
         end
@@ -1197,9 +1251,9 @@ class "Jinx"
 function Jinx:__init()
     
     self.Q = {Type = _G.SPELLTYPE_CIRCLE, Radius = 150}
-    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_YASUOWALL, _G.COLLISION_MINION}}
-    self.E = {Type = _G.SPELLTYPE_CIRCLE, Range = 900, Radius = 50}
-    self.R = {Type = _G.SPELLTYPE_CIRCLE, Range = 20000, Radius = 225, Speed = 1500, Collision = true, MaxCollision = 1, CollisionTypes = {2, 3}}
+    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_YASUOWALL, _G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
+    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 1, Range = 900, Radius = 50}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 1, Range = 20000, Radius = 225, Speed = 1500, Collision = true, MaxCollision = 1, CollisionTypes = {2, 3}}
 
     
 
@@ -1239,21 +1293,26 @@ function Jinx:LoadMenu()
 
     -- COMBO --
     self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
-    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
-    self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
-    self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
-    self.shadowMenu.combo:MenuElement({id = "EONCC", name = "Auto Use E on CC Targets", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "Q", name = "Use [Q] in Combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "W", name = "Use [W] in Combo", value = true, leftIcon = Icons.W})
+    self.shadowMenu.combo:MenuElement({id = "E", name = "Use [E] in  Combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "EONCC", name = "Auto Use [E] on CC Targets", value = true, leftIcon = Icons.E})
+
+    -- R SETTINGS --
+    self.shadowMenu:MenuElement({type = MENU, id = "rsettings", name = "R Settings"})
+    self.shadowMenu.rsettings:MenuElement({id = "usermanual", name = "Use [R] on keydown", key = string.byte("T"), value = true, toggle = true})
+    self.shadowMenu.rsettings:MenuElement({id = "usermanualdistance", name = "Max Distance willing to use [R] at", value = 0, min = 0, max = 20000})
 
 
      -- JUNGLE KILLSTEAL --
     self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
-    self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use W in Jungle Steal", value = true, leftIcon = Icons.W})
+    self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use [W] in Jungle Steal", value = true, leftIcon = Icons.W})
 
 
     -- KILL STEAL --
     self.shadowMenu:MenuElement({type = MENU, id = "killsteal", name = "Kill Steal"})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealw", name = "Kill steal with W", value = true, leftIcon = Icons.W})
-    self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with R", value = true, leftIcon = Icons.R})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealw", name = "Kill steal with [W]", value = true, leftIcon = Icons.W})
+    self.shadowMenu.killsteal:MenuElement({id = "killstealr", name = "Kill steal with [R]", value = true, leftIcon = Icons.R})
     self.shadowMenu.killsteal:MenuElement({id = "killstealrangemax", name = "Max Distance willing to use R at", value = 0, min = 0, max = 20000})
 
     -- DRAWINGS --
@@ -1262,6 +1321,7 @@ function Jinx:LoadMenu()
     self.shadowMenu.Drawing:MenuElement({id = "drawe", name = "Draw [E] Range", value = true, leftIcon = Icons.E})
     self.shadowMenu.Drawing:MenuElement({id = "drawr", name = "Draw [R] Range", value = true, leftIcon = Icons.R})
     self.shadowMenu.Drawing:MenuElement({id = "drawrkill", name = "Draw [R] Killable Text", value = true, leftIcon = Icons.R})
+    self.shadowMenu.Drawing:MenuElement({id = "drawrtoogle", name = "Draw [R] use toogle", value = true, leftIcon = Icons.R})
 
 
 end
@@ -1278,13 +1338,21 @@ function Jinx:Draw()
 		if self.shadowMenu.Drawing.draww:Value() and Ready(_W) then
 		Draw.Circle(myHero, 1450, 1, Draw.Color(0, 212, 250))
         end
+        if self.shadowMenu.Drawing.drawrtoogle:Value() then
+            Draw.Text("R Useage Toogle: ", 18, myHero.pos2D.x - 50, myHero.pos2D.y + 60, Draw.Color(255, 225, 255, 255))
+                if self.shadowMenu.rsettings.usermanual:Value() then
+                    Draw.Text("ON", 18, myHero.pos2D.x + 80, myHero.pos2D.y + 60, Draw.Color(255, 0, 255, 0))
+                    else
+                        Draw.Text("OFF", 18, myHero.pos2D.x + 80, myHero.pos2D.y + 60, Draw.Color(255, 255, 0, 0))
+                end 
+        end
 
     
     local target = TargetSelector:GetTarget(20000, 5)
     if target and IsValid(target) then
     local rdmg = getdmg("R", target, myHero)
     if self.shadowMenu.Drawing.drawrkill:Value() and Ready(_R) and target.health < rdmg then
-        Draw.Text("Killable with [R]", 18, target.pos2D.x, target.pos2D.y + 50, Draw.Color(255, 225, 255, 255))
+        Draw.Text("Killable with [R]", 18, target.pos2D.x - 50, target.pos2D.y + 60, Draw.Color(255, 225, 255, 255))
     end
 end
 
@@ -1295,6 +1363,7 @@ function Jinx:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
+    self:autor()
     self:autoe()
     self:killsteal()
     self:junglekillsteal()
@@ -1304,12 +1373,41 @@ function Jinx:Tick()
     end
 end
 
+function IsImmobileTarget(unit)
+	for i = 0, unit.buffCount do
+		local buff = unit:GetBuff(i)
+		if buff and (buff.type == 5 or buff.type == 11 or buff.type == 29 or buff.type == 24 or buff.name == "recall") and buff.count > 0 then
+			return true
+		end
+	end
+	return false	
+end
+
+function Jinx:autor()
+
+    local target = TargetSelector:GetTarget(20000, 1)
+    if target == nil then return end
+    local d = myHero.pos:DistanceTo(target.pos)
+    local rdmg = getdmg("R", target, myHero)
+    if Ready(_R) and target and IsValid(target)then
+        if self.shadowMenu.rsettings.usermanual:Value() then
+            
+            if (d <= self.shadowMenu.rsettings.usermanualdistance:Value()) and (target.health < rdmg) then
+                print(d)
+                self:CastR(target)
+            end
+        end    
+    end 
+
+end
+
+
+
 function Jinx:autoe()
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target and IsValid(target) then
     if Ready(_E) and self.shadowMenu.combo.EONCC:Value() and IsImmobileTarget(target) then
         self:CastE(target)
-
     end
     end
 end
@@ -1340,16 +1438,14 @@ function Jinx:Combo()
 
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target == nil then return end
+    local facing = _G.PremiumPrediction:IsFacing(myHero, target, 45)
     local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
     if Ready(_E) and target and IsValid(target) then
-        if self.shadowMenu.combo.E:Value() then
+        print(facing)
+        if self.shadowMenu.combo.E:Value() and facing then
             self:CastE(target)
-            --self:CastSpell(HK_Etarget)
         end
     end
-
-
-
     
     local distance = target.pos:DistanceTo(myHero.pos) 
     local target = TargetSelector:GetTarget(self.Q.Range, 1)
@@ -1361,6 +1457,7 @@ function Jinx:Combo()
             end
         end    
     end 
+
 end
 
 function Jinx:junglekillsteal()
