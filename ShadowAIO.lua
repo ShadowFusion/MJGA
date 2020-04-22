@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------
 
-local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona", "DrMundo"}								
+local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona", "DrMundo", "Nocturne"}								
 
 if not table.contains(Heroes, myHero.charName) then                 -- < ----- On first lines you must check your supported Champs,,,
 	print('Shadow AIO does not support ' .. myHero.charName)				-- otherwise all functions will be loaded until the first champ check although no champ is supported
@@ -34,7 +34,7 @@ local ItemHotKey = {[ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2,[ITEM_3] = HK_ITE
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.3
+    local Version = 0.4
     
     local Files = {
         Lua = {
@@ -131,6 +131,14 @@ local function MinionsNear(pos,range)
     end
     return N    
 end 
+
+local function CheckBuffs(unit, buffname)
+	for i = 0, unit.buffCount do
+		local buff = unit:GetBuff(i)
+		if buff and buff.name == buffname and buff.count > 0 then return buff.count end
+	end
+	return 0
+end
 
 local function GetAllyHeroes() 
     AllyHeroes = {}
@@ -1211,8 +1219,166 @@ function DrMundo:CastE(target)
         end
     end
 end
+--[[
 
 
+
+]]
+
+class "Nocturne"
+function Nocturne:__init()
+    
+    self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0.25, Radius = 100, Range = 1200, Speed = 1600, Collision = false, MaxCollision = 5, CollisionTypes = {_G.COLLISION_YASUOWALL}}
+    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 800, Range = 800, Speed = 1400, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
+    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.25, Radius = 0, Range = 475, Speed = 0, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.50, Radius = 10000, Range = ({2500, 3250, 4000})[GetCastLevel(myHero, _R)], Speed = 2000}
+    
+
+    OnAllyHeroLoad(function(hero)
+        Allys[hero.networkID] = hero
+    end)
+    
+    OnEnemyHeroLoad(function(hero)
+        Enemys[hero.networkID] = hero
+    end)    
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+    
+    orbwalker:OnPreMovement(function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end)
+end
+
+local Icons = {
+    ["NocturneIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/a9/Nocturne_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/0/09/Duskbringer.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/c2/Shroud_of_Darkness.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f8/Unspeakable_Horror.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/8/8d/Paranoia.png",
+    ["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+    ["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+    }
+
+function Nocturne:LoadMenu()
+    self.shadowMenu = MenuElement({type = MENU, id = "shadowNocturne", name = "Shadow Nocturne", leftIcon = Icons["NocturneIcon"]})
+
+
+    -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+    self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
+    self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "user", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+
+    -- JUNGLE CLEAR --
+    self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+    self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+    self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+
+    -- DRAWING SETTINGS --
+
+end
+
+
+function Nocturne:Draw()
+
+end
+
+function Nocturne:Tick()
+    if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+        return
+    end
+    if orbwalker.Modes[0] then
+        self:Combo()
+    elseif orbwalker.Modes[3] then
+        self:jungleclear()
+    elseif orbwalker.Modes[1] then
+        
+    end
+end
+
+function Nocturne:jungleclear()
+
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj.team ~= myHero.team then
+                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                    if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_Q, obj)
+                    end
+                    if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                        Control.CastSpell(HK_E);
+                    end
+                end
+            end
+            
+        end
+
+end
+
+
+function Nocturne:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then return end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.useq:Value() then
+           self:CastQ(target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target == nil then return end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.usee:Value() then
+           Control.CastSpell(HK_E, target)
+        end														
+    end
+
+    local target = TargetSelector:GetTarget(2000, 1)
+    if target == nil then return end
+    local d = myHero.pos:DistanceTo(target.pos)
+        if Ready(_R) and target and IsValid(target) then
+            if self.shadowMenu.combo.user:Value() and (d >= 1200) then
+                Control.CastSpell(HK_R, target)
+            end
+        end   
+
+end
+
+function Nocturne:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
+function Nocturne:CastE(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
+end
+
+function Nocturne:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
 
 
 
@@ -1250,10 +1416,10 @@ _   _   _
 class "Jinx"
 function Jinx:__init()
     
-    self.Q = {Type = _G.SPELLTYPE_CIRCLE, Radius = 150}
-    self.W = {Type = _G.SPELLTYPE_LINE, Range = 1450, Radius = 40.25, Speed = 3200, Collision = true, MaxCollision = 1, CollisionTypes = {_G.COLLISION_YASUOWALL, _G.COLLISION_MINION, _G.COLLISION_ENEMYHERO}}
-    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 1, Range = 900, Radius = 50}
-    self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 1, Range = 20000, Radius = 225, Speed = 1500, Collision = true, MaxCollision = 1, CollisionTypes = {2, 3}}
+    self.Q = {speed = 2000, range = 600, delay = 0.25, radius = 0, type = "circular"}
+    self.W = {speed = 1200, range = 10000, delay = 0.25, radius = 60, type = "linear", collision = {"minion"}}
+    self.E = {speed = 1750, range = 900, delay = 0.25, radius = 50, type = "circular"}
+    self.R = {speed = 1700, range = 25000, delay = 0.55, radius = 140, type = "linear"}
 
     
 
@@ -1298,15 +1464,15 @@ function Jinx:LoadMenu()
     self.shadowMenu.combo:MenuElement({id = "E", name = "Use [E] in  Combo", value = true, leftIcon = Icons.E})
     self.shadowMenu.combo:MenuElement({id = "EONCC", name = "Auto Use [E] on CC Targets", value = true, leftIcon = Icons.E})
 
+        -- COMBO --
+    self.shadowMenu:MenuElement({type = MENU, id = "clear", name = "Lane Clear"})
+    self.shadowMenu.clear:MenuElement({id = "Q", name = "Use [Q] in LaneClear", value = true, leftIcon = Icons.Q})
+
+
     -- R SETTINGS --
     self.shadowMenu:MenuElement({type = MENU, id = "rsettings", name = "R Settings"})
     self.shadowMenu.rsettings:MenuElement({id = "usermanual", name = "Use [R] on keydown", key = string.byte("T"), value = true, toggle = true})
     self.shadowMenu.rsettings:MenuElement({id = "usermanualdistance", name = "Max Distance willing to use [R] at", value = 0, min = 0, max = 20000})
-
-
-     -- JUNGLE KILLSTEAL --
-    self.shadowMenu:MenuElement({type = MENU, id = "junglekillsteal", name = "Jungle Steal"})
-    self.shadowMenu.junglekillsteal:MenuElement({id = "W", name = "Use [W] in Jungle Steal", value = true, leftIcon = Icons.W})
 
 
     -- KILL STEAL --
@@ -1322,6 +1488,7 @@ function Jinx:LoadMenu()
     self.shadowMenu.Drawing:MenuElement({id = "drawr", name = "Draw [R] Range", value = true, leftIcon = Icons.R})
     self.shadowMenu.Drawing:MenuElement({id = "drawrkill", name = "Draw [R] Killable Text", value = true, leftIcon = Icons.R})
     self.shadowMenu.Drawing:MenuElement({id = "drawrtoogle", name = "Draw [R] use toogle", value = true, leftIcon = Icons.R})
+    self.shadowMenu.Drawing:MenuElement({id = "rdebug", name = "Draw [R] for debug", value = true, leftIcon = Icons.R})
 
 
 end
@@ -1338,6 +1505,9 @@ function Jinx:Draw()
 		if self.shadowMenu.Drawing.draww:Value() and Ready(_W) then
 		Draw.Circle(myHero, 1450, 1, Draw.Color(0, 212, 250))
         end
+        if self.shadowMenu.Drawing.rdebug:Value() and Ready(_R) then
+            Draw.Circle(myHero, 3000, 1, Draw.Color(255, 255, 0, 0))
+            end   
         if self.shadowMenu.Drawing.drawrtoogle:Value() then
             Draw.Text("R Useage Toogle: ", 18, myHero.pos2D.x - 50, myHero.pos2D.y + 60, Draw.Color(255, 225, 255, 255))
                 if self.shadowMenu.rsettings.usermanual:Value() then
@@ -1366,11 +1536,21 @@ function Jinx:Tick()
     self:autor()
     self:autoe()
     self:killsteal()
-    self:junglekillsteal()
     if orbwalker.Modes[0] then
         self:Combo()
     elseif orbwalker.Modes[3] then
+        self:Clear()
     end
+
+    if myHero.activeSpell.name == "JinxR" then
+        _G.SDK.Orbwalker:SetMovement(false)
+        _G.SDK.Orbwalker:SetAttack(false)
+else
+    _G.SDK.Orbwalker:SetMovement(true)
+    _G.SDK.Orbwalker:SetAttack(true)
+end
+
+
 end
 
 function IsImmobileTarget(unit)
@@ -1384,22 +1564,40 @@ function IsImmobileTarget(unit)
 end
 
 function Jinx:autor()
-
     local target = TargetSelector:GetTarget(20000, 1)
     if target == nil then return end
     local d = myHero.pos:DistanceTo(target.pos)
     local rdmg = getdmg("R", target, myHero)
+    local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.R)
     if Ready(_R) and target and IsValid(target)then
         if self.shadowMenu.rsettings.usermanual:Value() then
-            
-            if (d <= self.shadowMenu.rsettings.usermanualdistance:Value()) and (target.health < rdmg) then
-                print(d)
+            if (d <= self.shadowMenu.rsettings.usermanualdistance:Value()) and (d >= 500) and (target.health < rdmg) then
                 self:CastR(target)
             end
         end    
     end 
 
 end
+
+function Jinx:Clear()
+    for i = 1, Game.MinionCount() do
+        local minion = Game.Minion(i)
+        if minion.team ~= myHero.team then
+            if minion ~= nil and minion.valid and minion.visible and not minion.dead then
+                if minion == nil and self:HasSecondQ() then
+                     Control.CastSpell(HK_Q) 
+                end
+                local d = myHero.pos:DistanceTo(minion.pos)
+                if self.shadowMenu.clear.Q:Value() and d < 600 then
+                    if d > 525 and not self:HasSecondQ() or (d < 525 and self:HasSecondQ()) then
+                        Control.CastSpell(HK_Q)
+                    end
+                end
+            end
+        end
+    end
+end
+
 
 
 
@@ -1429,30 +1627,27 @@ end
 function Jinx:Combo()
     local target = TargetSelector:GetTarget(self.W.Range, 1)
     if target == nil then return end
+    local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.W)
     if Ready(_W) and target and IsValid(target) then
-        if self.shadowMenu.combo.W:Value() then
-           self:CastW(target)
-            --self:CastSpell(HK_Etarget)
+        if self.shadowMenu.combo.W:Value() and pred.HitChance then
+            self:CastW(target) 
         end														---- you have "end" forget
     end
 
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target == nil then return end
-    local facing = _G.PremiumPrediction:IsFacing(myHero, target, 45)
-    local posBehind = myHero.pos:Extended(target.pos, target.distance + 100)
     if Ready(_E) and target and IsValid(target) then
-        print(facing)
-        if self.shadowMenu.combo.E:Value() and facing then
+        if self.shadowMenu.combo.E:Value() then
             self:CastE(target)
         end
     end
     
-    local distance = target.pos:DistanceTo(myHero.pos) 
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
     if target == nil then return end
+    local distance = target.pos:DistanceTo(myHero.pos) 
     if Ready(_Q) and target and IsValid(target)then
         if self.shadowMenu.combo.Q:Value() then
-            if distance > 615 and not self:HasSecondQ() or (distance < 615 and self:HasSecondQ()) then
+            if distance > 525 and not self:HasSecondQ() or (distance < 525 and self:HasSecondQ()) then
                 Control.CastSpell(HK_Q)
             end
         end    
@@ -1460,49 +1655,27 @@ function Jinx:Combo()
 
 end
 
-function Jinx:junglekillsteal()
-    if self.shadowMenu.junglekillsteal.W:Value() then 
-        for i = 1, Game.MinionCount() do
-            local obj = Game.Minion(i)
-            if obj.team ~= myHero.team then
-                if obj ~= nil and obj.valid and obj.visible and not obj.dead then
-                    local wdmg = getdmg("W", obj, myHero, 1)
-                    if Ready(_W) and self.shadowMenu.junglekillsteal.W:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.W.Range and obj.health < wdmg) then
-                        Control.CastSpell(HK_W, obj);
-                    end
-                end
-            end
-        end
-    end
-end
-
 function Jinx:HasSecondQ()
-    return Jinx:GotBuff(myHero, "JinxQ") > 0
+    return CheckBuffs(myHero, "JinxQ") > 0
 end
 
-function Jinx:GotBuff(unit, buffname)
-    for i = 0, unit.buffCount do
-        local buff = unit:GetBuff(i)
-        if buff and buff.name == buffname and buff.count > 0 then return buff.count end
-    end
-    return 0
-end
 
 function Jinx:CastW(target)
     if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.W, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-            Control.CastSpell(HK_W, Pred.CastPosition)
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.W)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.Medium(pred.HitChance) and Game.CanUseSpell(_Q) == 0 then
+            Control.CastSpell(HK_W, pred.CastPos)
             lastW = GetTickCount()
         end
     end
 end
 
+
 function Jinx:CastE(target)
     if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
-            Control.CastSpell(HK_E, Pred.CastPosition)
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.E)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.Medium(pred.HitChance) and Game.CanUseSpell(_E) == 0 then
+            Control.CastSpell(HK_E, pred.CastPos)
             lastE = GetTickCount()
         end
     end
@@ -1510,9 +1683,11 @@ end
 
 function Jinx:CastR(target)
     if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
-        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
-            Control.CastSpell(HK_R, Pred.CastPosition)
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.R)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.High(pred.HitChance) and Game.CanUseSpell(_R) == 0 then
+            Direction = Vector((myHero.pos-pred.CastPos):Normalized())
+	        Spot = myHero.pos - Direction * 700
+            Control.CastSpell(HK_R, Spot)
             lastR = GetTickCount()
         end
     end
