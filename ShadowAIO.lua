@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------
 
-local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona", "DrMundo", "Nocturne"}								
+local Heroes = {"MasterYi", "LeeSin", "Elise", "Jinx", "Leona", "Braum", "Blitzcrank", "Nami", "Sona", "DrMundo", "Nocturne", "Zed", "Olaf", "Hecarim"}								
 
 if not table.contains(Heroes, myHero.charName) then                 -- < ----- On first lines you must check your supported Champs,,,
 	print('Shadow AIO does not support ' .. myHero.charName)				-- otherwise all functions will be loaded until the first champ check although no champ is supported
@@ -15,7 +15,7 @@ local GameMissile = Game.Missile
 local GameMissileCount = Game.MissileCount
 
 local lastQ = 0
-
+castedWard = false
 local lastW = 0
 local lastE = 0
 local lastR = 0
@@ -34,7 +34,7 @@ local ItemHotKey = {[ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2,[ITEM_3] = HK_ITE
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.4
+    local Version = 0.5
     
     local Files = {
         Lua = {
@@ -467,6 +467,7 @@ function LeeSin:LoadMenu()
     self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
     self.shadowMenu.combo:MenuElement({id = "useq", name = "Use [Q] in combo", value = true, leftIcon = Icons.Q})
     self.shadowMenu.combo:MenuElement({id = "usee", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
+    self.shadowMenu.combo:MenuElement({id = "userinsec", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
 
     -- AUTO W --
     self.shadowMenu:MenuElement({type = MENU, id = "autow", name = "Auto W"})
@@ -540,9 +541,18 @@ function LeeSin:Tick()
     end
 end
 
+local keybindings = { [ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2, [ITEM_3] = HK_ITEM_3, [ITEM_4] = HK_ITEM_4, [ITEM_5] = HK_ITEM_5, [ITEM_6] = HK_ITEM_6, [ITEM_7] = HK_ITEM_7}
+function GetInventorySlotItem(itemID)
+    assert(type(itemID) == "number", "GetInventorySlotItem: wrong argument types (<number> expected)")
+    for _, j in pairs({ITEM_1, ITEM_2, ITEM_3, ITEM_4, ITEM_5, ITEM_6, ITEM_7}) do
+        if myHero:GetItemData(j).itemID == itemID and myHero:GetSpellData(j).currentCd == 0 then return j end
+    end
+    return nil
+end
+
 
 function LeeSin:autoW()
-  	
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
         if self.shadowMenu.autow.usew:Value() and Ready(_W) then
             if myHero.health/myHero.maxHealth <= self.shadowMenu.autow.usewhealth:Value()/100 then
                 Control.CastSpell(HK_W, myHero.pos)
@@ -592,6 +602,33 @@ function LeeSin:Combo()
         end														
     end
 
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then return end 
+    if Ready(_W) and target and IsValid(target) then
+        print(castedWard)
+        if castedWard == false then
+        local posBehind = myHero.pos:Extended(target.pos, target.distance + 300)
+        end
+        local castwPos = posBehind
+        local ward = GetInventorySlotItem(3340) or GetInventorySlotItem(2055) or GetInventorySlotItem(2049) or GetInventorySlotItem(2301) or GetInventorySlotItem(2302) or GetInventorySlotItem(2303) or GetInventorySlotItem(3711)
+        if ward and myHero.pos:DistanceTo(target.pos) <= 100 then
+            Control.CastSpell(keybindings[ward], posBehind)
+            castedWard = true
+        end
+        if castedWard == true then
+            Control.CastSpell(HK_W, castwPos)
+        end
+    end 
+
+
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target == nil then return end
+    if Ready(_R) and target and IsValid(target) then
+        if self.shadowMenu.combo.userinsec:Value() then
+        DelayAction(function() self:CastR(target) end, 0.05)
+        end														
+    end
+
     local target = TargetSelector:GetTarget(self.E.Range, 1)
     if target == nil then return end
     if Ready(_E) and target and IsValid(target) then
@@ -599,8 +636,6 @@ function LeeSin:Combo()
            self:CastE(target)
         end														
     end
-
-
 end
 
 
@@ -1515,19 +1550,20 @@ function Jinx:Draw()
                     else
                         Draw.Text("OFF", 18, myHero.pos2D.x + 80, myHero.pos2D.y + 60, Draw.Color(255, 255, 0, 0))
                 end 
-        end
+            end
 
-    
-    local target = TargetSelector:GetTarget(20000, 5)
-    if target and IsValid(target) then
-    local rdmg = getdmg("R", target, myHero)
-    if self.shadowMenu.Drawing.drawrkill:Value() and Ready(_R) and target.health < rdmg then
-        Draw.Text("Killable with [R]", 18, target.pos2D.x - 50, target.pos2D.y + 60, Draw.Color(255, 225, 255, 255))
+    for i = 1,Game.HeroCount() do
+        local hero = Game.Hero(i)
+        if hero and IsValid(hero) and hero.team ~= myHero.team and rdmg > hero.health then
+            local rdmg = getdmg("R", target, myHero)
+            if self.shadowMenu.Drawing.drawrkill:Value() and Ready(_R) then
+                Draw.Text("Killable with [R]", 18, hero.pos2D.x - 100, hero.pos2D.y + 60, Draw.Color(255, 225, 0, 0))
+            end
+        end
     end
 end
 
 
-end
 
 function Jinx:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
@@ -2802,4 +2838,722 @@ if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
     end
 end
 end
+--[[
+   _   _   _  
+  / \ / \ / \ 
+ ( Z | E | D )
+  \_/ \_/ \_/ 
+]]
+class "Zed"
+function Zed:__init()
+
+self.Q = {speed = 900, range = 900, delay = 0.25, radius = 50, type = "linear"}
+self.W = {speed = 1750, range = 650, delay = 0.25, radius = 1950, type = "linear"}
+self.E = {speed = 1337000, range = 290, delay = 0.25, radius = 290, type = "Circular"}
+self.R = {speed = 1337000, range = 625, delay = 0.25, radius = 0, type = "Circular"}
+
+
+OnAllyHeroLoad(function(hero)
+    Allys[hero.networkID] = hero
+end)
+
+OnEnemyHeroLoad(function(hero)
+    Enemys[hero.networkID] = hero
+end)
+
+Callback.Add("Tick", function() self:Tick() end)
+Callback.Add("Draw", function() self:Draw() end)
+
+orbwalker:OnPreMovement(
+    function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end
+)
+end
+
+local Icons = {
+["ZedIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/46/Zed_OriginalSquare.png",
+["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/96/Razor_Shuriken.png",
+["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/3/3f/Living_Shadow.png",
+["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/45/Shadow_Slash.png",
+["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/3/34/Death_Mark.png",
+["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+}
+
+
+function Zed:LoadMenu()
+self.shadowMenu = MenuElement({type = MENU, id = "shadowZed", name = "Shadow Zed", leftIcon = Icons.ZedIcon})
+
+-- COMBO --
+self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
+self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+self.shadowMenu.combo:MenuElement({id = "userkillable", name = "Activate [R] when full combo can kill", value = true, leftIcon = Icons.R})
+
+-- COMBO --
+self.shadowMenu:MenuElement({type = MENU, id = "harass", name = "Harass"})
+self.shadowMenu.harass:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.harass:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
+self.shadowMenu.harass:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+
+-- AUTO R --
+self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies hit", value = 1, min = 1, max = 5, identifier = "#"})
+
+
+-- DRAWING SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+self.shadowMenu.drawings:MenuElement({id = "drawW", name = "Draw [W] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawQ", name = "Draw [Q] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawE", name = "Draw [E] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawR", name = "Draw [R] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawRkillabletext", name = "Draw Killable with full combo", value = true})
+
+
+-- SUMMONER SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+end
+
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+end
+
+end
+
+
+function Zed:Draw()
+
+if self.shadowMenu.drawings.drawW:Value() then
+    if Ready(_W) then
+        Draw.Circle(myHero, 650, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawQ:Value() then
+    if Ready(_Q) then
+        Draw.Circle(myHero, 900, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawE:Value() then
+    if Ready(_E) then
+        Draw.Circle(myHero, 290, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawR:Value() then
+    if Ready(_R) then
+        Draw.Circle(myHero, 625, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+for i = 1,Game.HeroCount() do
+    local hero = Game.Hero(i)
+    if hero and IsValid(hero) and hero.team ~= myHero.team and (getdmg("R", hero, myHero) + (getdmg("Q", hero, myHero) * 2) + getdmg("E", hero, myHero) + (myHero.totalDamage * 2)) > hero.health then
+        if Ready(_Q) and Ready(_W) and Ready(_E) and Ready(_R) then
+            Draw.Text("Killable with [Full Combo]", 18, hero.pos2D.x - 100, hero.pos2D.y + 60, Draw.Color(255, 225, 0, 0))
+        end
+    end
+end
+
+end
+
+function Zed:Tick()
+if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+    return
+end
+self:AutoSummoners()
+if orbwalker.Modes[0] then
+    self:Combo()
+elseif orbwalker.Modes[1] then
+    self:Harass()
+elseif orbwalker.Modes[3] then
+end
+end
+
+
+function Zed:AutoSummoners()
+
+-- IGNITE --
+local target = TargetSelector:GetTarget(self.Q.Range, 1)
+if target and IsValid(target) then
+local ignDmg = getdmg("IGNITE", target, myHero)
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+    Control.CastSpell(HK_SUMMONER_1, target)
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+    Control.CastSpell(HK_SUMMONER_2, target)
+end
+end
+end
+
+
+function Zed:Harass()
+
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then end
+    local d = myHero.pos:DistanceTo(target.pos)
+    if target and IsValid(target) then
+            if self.shadowMenu.harass.W:Value() and Ready(_W) and myHero:GetSpellData(_W).name ~= "ZedW2" and (d <= 650) then
+            Control.CastSpell(HK_W, target)
+        end
+    end
+
+    if CheckBuffs(myHero, "ZedWHandler") > 0 then
+        print(CheckBuffs(myHero, "ZedWHandler") > 0)
+        local target = TargetSelector:GetTarget(self.E.Range, 1)
+        if target == nil then end
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.E)
+        if target and IsValid(target) then
+            local d = pred.CastPos:DistanceTo(target.pos)
+            if self.shadowMenu.harass.E:Value() and Ready(_E) and (d <= 270) then
+            Control.CastSpell(HK_E)
+            end
+        end
+    end
+
+    if not Ready(_W) then
+        local target = TargetSelector:GetTarget(self.E.Range, 1)
+        if target == nil then end
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.E)
+        if target and IsValid(target) then
+            local d = myHero.pos:DistanceTo(target.pos)
+            if self.shadowMenu.harass.E:Value() and Ready(_E) and (d <= 270) then
+            Control.CastSpell(HK_E)
+            end
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then end
+    if target and IsValid(target) then
+        if self.shadowMenu.harass.Q:Value() and Ready(_Q) then
+            self:CastQ(target)
+        end
+    end
+
+end
+
+function Zed:Combo()
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target == nil then end
+    if target and IsValid(target) then
+        local d = myHero.pos:DistanceTo(target.pos)
+        if self.shadowMenu.combo.R:Value() and Ready(_R) and (d <= 630) then
+            Control.CastSpell(HK_R, target)
+        end
+    end
+
+    DelayAction(function()
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then end
+    if target and IsValid(target) then
+        local d = myHero.pos:DistanceTo(target.pos)
+        if self.shadowMenu.combo.W:Value() and Ready(_W) and myHero:GetSpellData(_W).name ~= "ZedW2" and (d <= 650) then
+            Control.CastSpell(HK_W, target)
+        end
+    end
+end, 0.75)
+
+    if CheckBuffs(myHero, "ZedWHandler") > 0 then
+        local target = TargetSelector:GetTarget(self.E.Range, 1)
+        if target == nil then end
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.E)
+        if target and IsValid(target) then
+            local d = pred.CastPos:DistanceTo(target.pos)
+            if self.shadowMenu.combo.E:Value() and Ready(_E) and (d <= 270) then
+            Control.CastSpell(HK_E)
+            end
+        end
+    end
+
+    if not Ready(_W) then
+        local target = TargetSelector:GetTarget(self.E.Range, 1)
+        if target == nil then end
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.E)
+        if target and IsValid(target) then
+            local d = myHero.pos:DistanceTo(target.pos)
+            if self.shadowMenu.combo.E:Value() and Ready(_E) and (d <= 270) then
+            Control.CastSpell(HK_E)
+            end
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then end
+    local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.Q)
+    print(pred.HitChance)
+    if target and IsValid(target) then
+        if self.shadowMenu.combo.Q:Value() and Ready(_Q) then
+            self:CastQ(target)
+        end
+    end
+
+
+end
+
+
+--[[
+
+Cast Spells Below
+
+
+]]
+
+function Zed:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.Q)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.Medium(pred.HitChance) and Game.CanUseSpell(_Q) == 0 then
+            Control.CastSpell(HK_Q, pred.CastPos)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
+function Zed:CastW(target)
+    if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.W)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.Medium(pred.HitChance) and Game.CanUseSpell(_W) == 0 then
+            Control.CastSpell(HK_W, pred.CastPos)
+            lastW = GetTickCount()
+        end
+    end
+end
+
+
+function Zed:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.R)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.Medium(pred.HitChance) and Game.CanUseSpell(_R) == 0 then
+            Control.CastSpell(HK_R, pred.CastPos)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+--[[
+   _   _   _  
+  / \ / \ / \ 
+ ( Z | E | D )
+  \_/ \_/ \_/ 
+]]
+class "Olaf"
+function Olaf:__init()
+
+self.Q = {speed = 1500, range = 1000, delay = 0.25, radius = 50, type = "linear"}
+self.E = {range = 325, type = "Circular"}
+
+
+OnAllyHeroLoad(function(hero)
+    Allys[hero.networkID] = hero
+end)
+
+OnEnemyHeroLoad(function(hero)
+    Enemys[hero.networkID] = hero
+end)
+
+Callback.Add("Tick", function() self:Tick() end)
+Callback.Add("Draw", function() self:Draw() end)
+
+orbwalker:OnPreMovement(
+    function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end
+)
+end
+
+local Icons = {
+["OlafIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/7e/Olaf_OriginalSquare.png",
+["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/61/Undertow.png",
+["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ad/Vicious_Strikes.png",
+["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/25/Reckless_Swing.png",
+["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/68/Ragnarok.png",
+["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+}
+
+
+function Olaf:LoadMenu()
+self.shadowMenu = MenuElement({type = MENU, id = "shadowOlaf", name = "Shadow Olaf", leftIcon = Icons.OlafIcon})
+
+-- COMBO --
+self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
+self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true, leftIcon = Icons.R})
+self.shadowMenu.combo:MenuElement({id = "userkillable", name = "Activate [R] when full combo can kill", value = true, leftIcon = Icons.R})
+
+-- JUNGLE CLEAR --
+self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+self.shadowMenu.jungleclear:MenuElement({id = "usee", name = "Use [E] in clear", value = true})
+
+-- AUTO R --
+self.shadowMenu:MenuElement({type = MENU, id = "autor", name = "Auto R Settings"})
+self.shadowMenu.autor:MenuElement({id = "useautor", name = "Use auto [R]", value = true})
+self.shadowMenu.autor:MenuElement({id = "autorammount", name = "Activate [R] when x enemies hit", value = 1, min = 1, max = 5, identifier = "#"})
+
+
+-- DRAWING SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+self.shadowMenu.drawings:MenuElement({id = "drawW", name = "Draw [W] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawQ", name = "Draw [Q] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawE", name = "Draw [E] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawR", name = "Draw [R] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawRkillabletext", name = "Draw Killable with full combo", value = true})
+
+
+-- SUMMONER SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+end
+
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+end
+
+end
+
+
+function Olaf:Draw()
+
+if self.shadowMenu.drawings.drawW:Value() then
+    if Ready(_W) then
+        Draw.Circle(myHero, 650, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawQ:Value() then
+    if Ready(_Q) then
+        Draw.Circle(myHero, 1000, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawE:Value() then
+    if Ready(_E) then
+        Draw.Circle(myHero, 290, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawR:Value() then
+    if Ready(_R) then
+        Draw.Circle(myHero, 625, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+for i = 1,Game.HeroCount() do
+    local hero = Game.Hero(i)
+    if hero and IsValid(hero) and hero.team ~= myHero.team and (getdmg("R", hero, myHero) + (getdmg("Q", hero, myHero) * 2) + getdmg("E", hero, myHero) + (myHero.totalDamage * 2)) > hero.health then
+        if Ready(_Q) and Ready(_W) and Ready(_E) and Ready(_R) then
+            Draw.Text("Killable with [Full Combo]", 18, hero.pos2D.x - 100, hero.pos2D.y + 60, Draw.Color(255, 225, 0, 0))
+        end
+    end
+end
+
+end
+
+function Olaf:Tick()
+if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+    return
+end
+if orbwalker.Modes[0] then
+    self:Combo()
+elseif orbwalker.Modes[1] then
+    self:Harass()
+elseif orbwalker.Modes[3] then
+    self:jungleclear()
+end
+end
+
+function Olaf:jungleclear()
+
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                    Control.CastSpell(HK_Q, obj)
+                end
+                if Ready(_E) and self.shadowMenu.jungleclear.usee:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                    Control.CastSpell(HK_E);
+                end
+            end
+        end
+        
+    end
+
+end
+
+
+
+function Olaf:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then end
+    local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.Q)
+    local d = myHero.pos:DistanceTo(target.pos)
+    print(pred.HitChance)
+    if target and IsValid(target) then
+        if self.shadowMenu.combo.Q:Value() and Ready(_Q) then
+            self:CastQ(target)
+        end
+        if self.shadowMenu.combo.E:Value() and Ready(_E) and d <= 325 then
+            Control.CastSpell(HK_E, target)
+        end
+        if self.shadowMenu.combo.W:Value() and Ready(_W) and d <= 100 then
+            Control.CastSpell(HK_W)
+        end
+    end
+
+end
+
+
+--[[
+
+Cast Spells Below
+
+
+]]
+
+function Olaf:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local pred = _G.PremiumPrediction:GetPrediction(myHero, target, self.Q)
+        if pred.CastPos and _G.PremiumPrediction.HitChance.Medium(pred.HitChance) and Game.CanUseSpell(_Q) == 0 then
+            Control.CastSpell(HK_Q, pred.CastPos)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
+--[[
+   _   _   _   _   _   _   _  
+  / \ / \ / \ / \ / \ / \ / \ 
+ ( h | e | c | a | r | i | m )
+  \_/ \_/ \_/ \_/ \_/ \_/ \_/ 
+]]
+
+class "Hecarim"
+function Hecarim:__init()
+
+    self.Q = {_G.SPELLTYPE_CIRCLE, Delay = 0.225, Radius = 350, Range = 350, Speed = 1750, Collision = true, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.W = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 575, Range = 575, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    self.R = {_G.SPELLTYPE_CIRCLE, Delay = 0.1, Radius = 1000, Range = 1000, Speed = 1800, Collision = false, MaxCollision = 0, CollisionTypes = {_G.COLLISION_MINION, _G.COLLISION_YASUOWALL}}
+    
+
+
+OnAllyHeroLoad(function(hero)
+    Allys[hero.networkID] = hero
+end)
+
+OnEnemyHeroLoad(function(hero)
+    Enemys[hero.networkID] = hero
+end)
+
+Callback.Add("Tick", function() self:Tick() end)
+Callback.Add("Draw", function() self:Draw() end)
+
+orbwalker:OnPreMovement(
+    function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end
+)
+end
+
+local Icons = {
+["HecarimIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/c/ca/Hecarim_OriginalSquare.png",
+["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/e/e4/Rampage.png",
+["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4d/Spirit_of_Dread.png",
+["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ac/Devastating_Charge.png",
+["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/a/ac/Devastating_Charge.png",
+["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+}
+
+
+function Hecarim:LoadMenu()
+self.shadowMenu = MenuElement({type = MENU, id = "shadowHecarim", name = "Shadow Hecarim", leftIcon = Icons.HecarimIcon})
+
+-- COMBO --
+self.shadowMenu:MenuElement({type = MENU, id = "combo", name = "Combo"})
+self.shadowMenu.combo:MenuElement({id = "Q", name = "Use Q in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.combo:MenuElement({id = "W", name = "Use W in Combo", value = true, leftIcon = Icons.W})
+self.shadowMenu.combo:MenuElement({id = "E", name = "Use E in  Combo", value = true, leftIcon = Icons.E})
+self.shadowMenu.combo:MenuElement({id = "R", name = "Use R in  Combo", value = true})
+self.shadowMenu.combo:MenuElement({id = "userkillable", name = "Activate [R] when can hit x targers", value = 1, min = 1, max = 5, identifier = "#"})
+
+-- JUNGLE CLEAR --
+self.shadowMenu:MenuElement({type = MENU, id = "jungleclear", name = "Jungle Clear"})
+self.shadowMenu.jungleclear:MenuElement({id = "useq", name = "Use [Q] in clear", value = true})
+self.shadowMenu.jungleclear:MenuElement({id = "usew", name = "Use [W] in clear", value = true})
+
+
+-- DRAWING SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+self.shadowMenu.drawings:MenuElement({id = "drawW", name = "Draw [W] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawQ", name = "Draw [Q] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawE", name = "Draw [E] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawR", name = "Draw [R] Range", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawRkillabletext", name = "Draw Killable with full combo", value = true})
+
+
+-- SUMMONER SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+end
+
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+end
+
+end
+
+
+function Hecarim:Draw()
+
+if self.shadowMenu.drawings.drawW:Value() then
+    if Ready(_W) then
+        Draw.Circle(myHero, 650, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawQ:Value() then
+    if Ready(_Q) then
+        Draw.Circle(myHero, 1000, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawE:Value() then
+    if Ready(_E) then
+        Draw.Circle(myHero, 290, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+if self.shadowMenu.drawings.drawR:Value() then
+    if Ready(_R) then
+        Draw.Circle(myHero, 625, 1, Draw.Color(255, 255, 0, 255))
+    end
+end
+
+for i = 1,Game.HeroCount() do
+    local hero = Game.Hero(i)
+    if hero and IsValid(hero) and hero.team ~= myHero.team and (getdmg("R", hero, myHero) + (getdmg("Q", hero, myHero) * 2) + getdmg("E", hero, myHero) + (myHero.totalDamage * 2)) > hero.health then
+        if Ready(_Q) and Ready(_W) and Ready(_E) and Ready(_R) then
+            Draw.Text("Killable with [Full Combo]", 18, hero.pos2D.x - 100, hero.pos2D.y + 60, Draw.Color(255, 225, 0, 0))
+        end
+    end
+end
+
+end
+
+function Hecarim:Tick()
+if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+    return
+end
+if orbwalker.Modes[0] then
+    self:Combo()
+elseif orbwalker.Modes[1] then
+elseif orbwalker.Modes[3] then
+    self:jungleclear()
+end
+end
+
+function Hecarim:jungleclear()
+
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_Q) and self.shadowMenu.jungleclear.useq:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 800 then
+                    Control.CastSpell(HK_Q, obj);
+                end
+            end
+        end
+        if Ready(_W) and self.shadowMenu.jungleclear.usew:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and obj.pos:DistanceTo(myHero.pos) < 125 + myHero.boundingRadius then
+            Control.KeyDown(HK_W);
+        end
+    end
+end
+
+
+
+function Hecarim:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.combo.Q:Value() then
+            Control.CastSpell(HK_Q, target)
+        end
+    end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.combo.E:Value() then
+            Control.KeyDown(HK_E)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.combo.W:Value() then
+            Control.KeyDown(HK_W)
+            Control.KeyUp(HK_W)
+            --self:CastSpell(HK_Etarget)
+        end
+    end
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if Ready(_R) and target and IsValid(target)then
+        if self.shadowMenu.combo.R:Value() then
+            --print("Value is true")
+            self:CastR(target)
+        end
+    end
+end
+
+
+--[[
+Cast Spells Below
+]]
+
+function Hecarim:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+
 
