@@ -34,7 +34,7 @@ local ItemHotKey = {[ITEM_1] = HK_ITEM_1, [ITEM_2] = HK_ITEM_2,[ITEM_3] = HK_ITE
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.7
+    local Version = 0.8
     
     local Files = {
         Lua = {
@@ -5200,3 +5200,286 @@ function Warwick:CastR(target)
         end
     end
 end
+
+--[[
+   _   _   _   _   _  
+  / \ / \ / \ / \ / \ 
+ ( A | N | N | I | E )
+  \_/ \_/ \_/ \_/ \_/ 
+]]
+
+class "Gragas"
+function Gragas:__init()
+
+    self.Q = {Type = _G.SPELLTYPE_LINE, Delay = 0, Radius = 100, Range = myHero:GetSpellData(_Q).range, Speed = 1000, Collision = false}
+    self.W = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.75, Radius = 175, Range = myHero:GetSpellData(_W).range, Speed = 0, Collision = false}
+    self.E = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0, Radius = 180, Range = myHero:GetSpellData(_E).range, Speed = 1400, Collision = false}
+    self.R = {Type = _G.SPELLTYPE_CIRCLE, Delay = 0.55, Radius = 400, Range = myHero:GetSpellData(_R).range, Speed = 1000, Collision = false}
+    
+    
+
+OnAllyHeroLoad(function(hero)
+    Allys[hero.networkID] = hero
+end)
+
+OnEnemyHeroLoad(function(hero)
+    Enemys[hero.networkID] = hero
+end)
+
+Callback.Add("Tick", function() self:Tick() end)
+Callback.Add("Draw", function() self:Draw() end)
+
+orbwalker:OnPreMovement(
+    function(args)
+        if lastMove + 180 > GetTickCount() then
+            args.Process = false
+        else
+            args.Process = true
+            lastMove = GetTickCount()
+        end
+    end
+)
+end
+
+local Icons = {
+["GragasIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/0/02/Gragas_OriginalSquare.png",
+["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4b/Barrel_Roll.png",
+["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/5/59/Drunken_Rage.png",
+["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/2c/Body_Slam.png",
+["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/7c/Explosive_Cask.png",
+["EXH"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png",
+["IGN"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/Ignite.png"
+}
+
+
+function Gragas:LoadMenu()
+self.shadowMenu = MenuElement({type = MENU, id = "shadowGragas", name = "Shadow Gragas", leftIcon = Icons.GragasIcon})
+
+-- Q --
+self.shadowMenu:MenuElement({type = MENU, id = "Q", name = "Q"})
+self.shadowMenu.Q:MenuElement({id = "Qcombo", name = "Use [Q] in Combo", value = true, leftIcon = Icons.Q})
+self.shadowMenu.Q:MenuElement({id = "Qharass", name = "Use [Q] in Harass", value = true, leftIcon = Icons.Q})
+self.shadowMenu.Q:MenuElement({id = "Qjungle", name = "Use [Q] in Jungle Clear", value = true, leftIcon = Icons.Q})
+-- W --
+self.shadowMenu:MenuElement({type = MENU, id = "W", name = "W"})
+self.shadowMenu.W:MenuElement({id = "Wcombo", name = "Use [W] in Combo", value = true, leftIcon = Icons.W})
+self.shadowMenu.W:MenuElement({id = "Wharass", name = "Use [W] in Harass", value = true, leftIcon = Icons.W})
+self.shadowMenu.W:MenuElement({id = "Wjungle", name = "Use [W] in Jungle Clear", value = true, leftIcon = Icons.W})
+
+-- E --
+self.shadowMenu:MenuElement({type = MENU, id = "E", name = "E"})
+self.shadowMenu.E:MenuElement({id = "Ecombo", name = "Use [E] in Combo", value = true, leftIcon = Icons.E})
+self.shadowMenu.E:MenuElement({id = "Eharass", name = "Use [E] in Harass", value = true, leftIcon = Icons.E})
+self.shadowMenu.E:MenuElement({id = "Ejungle", name = "Use [E] in Jungle Clear", value = true, leftIcon = Icons.E})
+
+-- R --
+self.shadowMenu:MenuElement({type = MENU, id = "R", name = "R"})
+self.shadowMenu.R:MenuElement({id = "Rcombo", name = "Use [R] in Combo", value = true, leftIcon = Icons.R})
+self.shadowMenu.R:MenuElement({id = "Rexectue", name = "Use [R] to execute", value = true, leftIcon = Icons.R})
+
+
+
+-- DRAWING SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "drawings", name = "Drawing Settings"})
+self.shadowMenu.drawings:MenuElement({id = "drawrKillable", name = "Draw Killable with [R]", value = true})
+self.shadowMenu.drawings:MenuElement({id = "drawfullKillable", name = "Draw Killable with full combo", value = true})
+
+-- SUMMONER SETTINGS --
+self.shadowMenu:MenuElement({type = MENU, id = "SummonerSettings", name = "Summoner Settings"})
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseIgnite", name = "Use [Ignite] if killable?", value = true, leftIcon = Icons.IGN}) 
+end
+
+if myHero:GetSpellData(SUMMONER_1).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH})
+elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerExhaust" then
+    self.shadowMenu.SummonerSettings:MenuElement({id = "UseExhaust", name = "Use [Exhaust] on engage?", value = true, leftIcon = Icons.EXH}) 
+end
+
+end
+
+
+function Gragas:Draw()
+if self.shadowMenu.drawings.drawfullKillable:Value() then
+for i = 1,Game.HeroCount() do
+    local hero = Game.Hero(i)
+    if hero and IsValid(hero) and hero.team ~= myHero.team and (getdmg("R", hero, myHero) + (getdmg("Q", hero, myHero) * 2) + (myHero.totalDamage * 2)) > hero.health then
+        if Ready(_Q) and Ready(_W) and Ready(_R) then
+            Draw.Text("Killable with Full Combo", 18, hero.pos2D.x - 100, hero.pos2D.y - 200, Draw.Color(255, 225, 0, 0))
+        end
+    end
+end
+end
+
+if self.shadowMenu.drawings.drawrKillable:Value() then
+for i = 1,Game.HeroCount() do
+    local hero = Game.Hero(i)
+    local rdmg = getdmg("R", hero, myHero)
+    if hero and IsValid(hero) and hero.team ~= myHero.team and rdmg > hero.health then
+        if Ready(_R) then
+            Draw.Text("Killable with [R]", 18, hero.pos2D.x - 100, hero.pos2D.y + 35, Draw.Color(255, 225, 0, 0))
+        end
+    end
+end
+end
+
+
+
+
+end
+
+function Gragas:Tick()
+if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
+    return
+end
+    self:autoR()
+    self:AutoSummoners()
+if orbwalker.Modes[0] then
+    self:Combo()
+elseif orbwalker.Modes[1] then
+    self:Harass()
+elseif orbwalker.Modes[3] then
+    self:JungleClear()
+end
+end
+
+function Gragas:JungleClear()
+
+    for i = 1, Game.MinionCount() do
+        local obj = Game.Minion(i)
+        if obj.team ~= myHero.team then
+            if obj ~= nil and obj.valid and obj.visible and not obj.dead then
+                if Ready(_E) and self.shadowMenu.E.Ejungle:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.E.Range) then
+                    self:CastE(obj)
+                end
+                if Ready(_W) and self.shadowMenu.W.Wjungle:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                    Control.CastSpell(HK_W)
+                end
+                if Ready(_Q) and self.shadowMenu.Q.Qjungle:Value() and obj and obj.team == 300 and obj.valid and obj.visible and not obj.dead and (obj.pos:DistanceTo(myHero.pos) < self.Q.Range) then
+                    self:CastQ(obj)
+                end
+            end
+        end
+        
+    end
+
+end
+
+function Gragas:Harass()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.Q.Qharass:Value() then
+            self:CastQ(target)
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then end
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.W.Wharass:Value() then
+            Control.CastSpell(HK_W, target)
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.W.Range, 1)
+    if target == nil then end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.E.Eharass:Value() then
+            self:CastE(target)
+        end
+    end
+
+
+end
+
+function Gragas:autoR()
+    if self.shadowMenu.R.Rexectue:Value() then
+        local target = TargetSelector:GetTarget(self.R.Range, 1)
+        if target == nil then end
+        if Ready(_R) and target and IsValid(target) then
+            local rdmg = getdmg("R", target, myHero)
+            if (rdmg >= target.health) then
+                self:CastR(target)
+            end
+        end
+    end
+end
+
+function Gragas:AutoSummoners()
+    -- IGNITE --
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target and IsValid(target) then
+        local ignDmg = getdmg("IGNITE", target, myHero)
+        if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_1, target)
+        elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_2, target)
+        end
+    end
+end
+
+
+
+function Gragas:Combo()
+    local target = TargetSelector:GetTarget(self.Q.Range, 1)
+    if target == nil then end
+    if Ready(_Q) and target and IsValid(target) then
+        if self.shadowMenu.Q.Qcombo:Value() then
+            self:CastQ(target)
+        end
+    end
+
+    if Ready(_W) and target and IsValid(target) then
+        if self.shadowMenu.W.Wcombo:Value() then
+            Control.CastSpell(HK_W)
+        end
+    end
+
+    local target = TargetSelector:GetTarget(self.E.Range, 1)
+    if target == nil then end
+    if Ready(_E) and target and IsValid(target) then
+        if self.shadowMenu.E.Ecombo:Value() then
+            self:CastE(target)
+        end
+    end
+end
+
+
+--[[
+Cast Spells Below
+]]
+
+function Gragas:CastR(target)
+    if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_R, Pred.CastPosition)
+            lastR = GetTickCount()
+        end
+    end
+end
+
+function Gragas:CastE(target)
+    if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
+            Control.CastSpell(HK_E, Pred.CastPosition)
+            lastE = GetTickCount()
+        end
+    end
+end
+
+
+function Gragas:CastQ(target)
+    if Ready(_Q) and lastQ + 350 < GetTickCount() and orbwalker:CanMove() then
+        local Pred = GamsteronPrediction:GetPrediction(target, self.Q, myHero)
+        if Pred.Hitchance >= _G.HITCHANCE_HIGH then
+            Control.CastSpell(HK_Q, Pred.CastPosition)
+            lastQ = GetTickCount()
+        end
+    end
+end
+
