@@ -27,7 +27,7 @@ local TargetSelector
 -- [ AutoUpdate ] --
 do
     
-    local Version = 0.10
+    local Version = 0.01
     
     local Files = {
         Lua = {
