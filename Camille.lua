@@ -111,6 +111,15 @@ end
 return false;
 end
 
+function GetItemSlot(unit, id)
+    for i = ITEM_1, ITEM_7 do
+        if unit:GetItemData(i).itemID == id then
+            return i
+        end
+    end
+    return 0
+end
+
 local function MinionsNear(pos,range)
 	local pos = pos.pos
 	local N = 0
@@ -202,11 +211,31 @@ function IsFacing(unit)
     return false
 end
 
+function Mode()
+    if _G.SDK then
+        if _G.SDK.Orbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then
+            return "Combo"
+        elseif _G.SDK.Orbwalker.Modes[_G.SDK.ORBWALKER_MODE_HARASS] or Orbwalker.Key.Harass:Value() then
+            return "Harass"
+        elseif _G.SDK.Orbwalker.Modes[_G.SDK.ORBWALKER_MODE_LANECLEAR] or Orbwalker.Key.Clear:Value() then
+            return "LaneClear"
+        elseif _G.SDK.Orbwalker.Modes[_G.SDK.ORBWALKER_MODE_LASTHIT] or Orbwalker.Key.LastHit:Value() then
+            return "LastHit"
+        elseif _G.SDK.Orbwalker.Modes[_G.SDK.ORBWALKER_MODE_FLEE] then
+            return "Flee"
+        end
+    else
+        return GOS.GetMode()
+    end
+end
 
 local Heroes = {"Camille"}
 if not table.contains(Heroes, myHero.charName) then return end
+
         
 class "Camille"
+
+local Item_HK = {}
 
 function Camille:__init()
     
@@ -271,9 +300,9 @@ function Camille:LoadMenu()
 
     -- R --
     self.Menu:MenuElement({type = MENU, id = "R", name = "R"})
-    self.Menu.E:MenuElement({id = "RCombo", name = "Use [E] in combo", value = true, leftIcon = Icons.E})
-    self.Menu.E:MenuElement({id = "RHarass", name = "Use [E] in harass", value = true, leftIcon = Icons.E})
-    self.Menu.E:MenuElement({id = "RAuto", name = "Use [E] in auto", value = true, leftIcon = Icons.E})
+    self.Menu.R:MenuElement({id = "RCombo", name = "Use [R] in combo", value = true, leftIcon = Icons.R})
+    self.Menu.R:MenuElement({id = "RHarass", name = "Use [R] in harass", value = true, leftIcon = Icons.R})
+    self.Menu.R:MenuElement({id = "RAuto", name = "Use [R] in auto", value = true, leftIcon = Icons.R})
 
 end
 
@@ -293,12 +322,60 @@ function Camille:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
+    self:UpdateItems()
     self:Logic()
+    self:AutoSummoners()
 end
 
+function Camille:UpdateItems()
+    Item_HK[ITEM_1] = HK_ITEM_1
+    Item_HK[ITEM_2] = HK_ITEM_2
+    Item_HK[ITEM_3] = HK_ITEM_3
+    Item_HK[ITEM_4] = HK_ITEM_4
+    Item_HK[ITEM_5] = HK_ITEM_5
+    Item_HK[ITEM_6] = HK_ITEM_6
+    Item_HK[ITEM_7] = HK_ITEM_7
+end
 
+function Camille:Items1()
+    if GetItemSlot(myHero, 3074) > 0 and ValidTarget(target, 300) then --rave 
+        if myHero:GetSpellData(GetItemSlot(myHero, 3074)).currentCd == 0 then
+            Control.CastSpell(Item_HK[GetItemSlot(myHero, 3074)])
+        end
+    end
+    if GetItemSlot(myHero, 3077) > 0 and ValidTarget(target, 300) then --tiamat
+        if myHero:GetSpellData(GetItemSlot(myHero, 3077)).currentCd == 0 then
+            Control.CastSpell(Item_HK[GetItemSlot(myHero, 3077)])
+        end
+    end
+    if GetItemSlot(myHero, 3144) > 0 and ValidTarget(target, 550) then --bilge
+        if myHero:GetSpellData(GetItemSlot(myHero, 3144)).currentCd == 0 then
+            Control.CastSpell(Item_HK[GetItemSlot(myHero, 3144)], target)
+        end
+    end
+    if GetItemSlot(myHero, 3153) > 0 and ValidTarget(target, 550) then -- botrk
+        if myHero:GetSpellData(GetItemSlot(myHero, 3153)).currentCd == 0 then
+            Control.CastSpell(Item_HK[GetItemSlot(myHero, 3153)], target)
+        end
+    end
+    if GetItemSlot(myHero, 3146) > 0 and ValidTarget(target, 700) then --gunblade hex
+        if myHero:GetSpellData(GetItemSlot(myHero, 3146)).currentCd == 0 then
+            Control.CastSpell(Item_HK[GetItemSlot(myHero, 3146)], target)
+        end
+    end
+    if GetItemSlot(myHero, 3748) > 0 and ValidTarget(target, 300) then -- Titanic Hydra
+        if myHero:GetSpellData(GetItemSlot(myHero, 3748)).currentCd == 0 then
+            Control.CastSpell(Item_HK[GetItemSlot(myHero, 3748)])
+        end
+    end
+end
 
 function Camille:Logic()
+    print(myHero:GetSpellData(SUMMONER_2).range)
+
+if Mode() == "Combo" or Mode() == "Harass" and target then
+    self:Items1()
+
     local target = TargetSelector:GetTarget(self.W.Range, 1)
     if target == nil then return end
     if self:CanCast(_W, 0) and ValidTarget(target, self.W.Range)  then
@@ -310,6 +387,27 @@ function Camille:Logic()
     if self:CanCast(_Q, 0) and ValidTarget(target, self.Q.Range)  then
         Control.CastSpell(HK_Q)
     end
+
+    local target = TargetSelector:GetTarget(self.R.Range, 1)
+    if target == nil then return end
+    if self:CanCast(_R, 0) and ValidTarget(target, self.R.Range)  then
+        Control.CastSpell(HK_R)
+    end
+end
+
+function Camille:AutoSummoners()
+    -- IGNITE --
+    local target = TargetSelector:GetTarget(600, 1)
+    if target and IsValid(target) then
+        local ignDmg = getdmg("IGNITE", target, myHero)
+        if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_1, target)
+        elseif myHero:GetSpellData(SUMMONER_2).name == "SummonerDot" and Ready(SUMMONER_2) and (target.health < ignDmg ) then
+            Control.CastSpell(HK_SUMMONER_2, target)
+        end
+    end
+end
+
 end
 
 function Camille:CastW(target)
