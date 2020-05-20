@@ -32,13 +32,13 @@ do
     local Files = {
         Lua = {
             Path = SCRIPT_PATH,
-            Name = "Camille.lua",
-            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/Camille.lua"
+            Name = "Shen.lua",
+            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIOV2.lua"
         },
         Version = {
             Path = SCRIPT_PATH,
-            Name = "Camille.version",
-            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/Camille.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
+            Name = "Shen.version",
+            Url = "https://raw.githubusercontent.com/ShadowFusion/MJGA/master/ShadowAIOV2.version"    -- check if Raw Adress correct pls.. after you have create the version file on Github
         }
     }
     
@@ -73,7 +73,8 @@ do
 end
 
 local Champions = {
-    ["Camille"] = true,
+    ["Shen"] = true,
+    ["Karthus"] = true,
 }
 
 --Checking Champion 
@@ -229,15 +230,12 @@ function Mode()
     end
 end
 
-local Heroes = {"Camille"}
-if not table.contains(Heroes, myHero.charName) then return end
-
-        
-class "Camille"
-
+ 
+class "Shen"
 local Item_HK = {}
+local target
 
-function Camille:__init()
+function Shen:__init()
     
     self.Q = {Type = _G.SPELLTYPE_CIRCLE, Range = 325, Speed = 20, Collision = false}
     self.W = {Type = _G.SPELLTYPE_CONE, Range = 610, Radius = 100, Speed = 1750, Collision = false}
@@ -268,16 +266,16 @@ function Camille:__init()
 end
 
 local Icons = {
-    ["CamilleIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/0/0d/Camille_OriginalSquare.png",
-    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/4/4c/Precision_Protocol.png",
-    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/6/64/Tactical_Sweep.png",
-    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/2/24/Hookshot.png",
-    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/f/f4/The_Hextech_Ultimatum.png",
+    ["ShenIcon"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/8/81/Shen_OriginalSquare.png",
+    ["Q"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/7/7c/Twilight_Assault.png",
+    ["W"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/5/5e/Spirit%27s_Refuge.png",
+    ["E"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/9/92/Shadow_Dash.png",
+    ["R"] = "https://vignette.wikia.nocookie.net/leagueoflegends/images/8/85/Stand_United_2.png",
     ["EXH"] = "https://vignette2.wikia.nocookie.net/leagueoflegends/images/4/4a/Exhaust.png"
     }
 
-function Camille:LoadMenu()
-    self.Menu = MenuElement({type = MENU, id = "SeriesShadowCamille", name = "Series Shadow Camille", leftIcon = Icons["CamilleIcon"]})
+function Shen:LoadMenu()
+    self.Menu = MenuElement({type = MENU, id = "SeriesShadowShen", name = "Series Shadow Shen", leftIcon = Icons["ShenIcon"]})
 
 
     -- Q --
@@ -307,7 +305,7 @@ function Camille:LoadMenu()
 end
 
 
-function Camille:Draw()
+function Shen:Draw()
 --[[
     local target = TargetSelector:GetTarget(20000, 5)
     if target and IsValid(target) then
@@ -318,16 +316,17 @@ function Camille:Draw()
     ]]
 end
 
-function Camille:Tick()
+function Shen:Tick()
     if myHero.dead or Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading == true) then
         return
     end
+    target = TargetSelector:GetTarget(2200, 1)
     self:UpdateItems()
     self:Logic()
     self:AutoSummoners()
 end
 
-function Camille:UpdateItems()
+function Shen:UpdateItems()
     Item_HK[ITEM_1] = HK_ITEM_1
     Item_HK[ITEM_2] = HK_ITEM_2
     Item_HK[ITEM_3] = HK_ITEM_3
@@ -337,7 +336,7 @@ function Camille:UpdateItems()
     Item_HK[ITEM_7] = HK_ITEM_7
 end
 
-function Camille:Items1()
+function Shen:Items1()
     if GetItemSlot(myHero, 3074) > 0 and ValidTarget(target, 300) then --rave 
         if myHero:GetSpellData(GetItemSlot(myHero, 3074)).currentCd == 0 then
             Control.CastSpell(Item_HK[GetItemSlot(myHero, 3074)])
@@ -370,34 +369,23 @@ function Camille:Items1()
     end
 end
 
-function Camille:Logic()
-    print(myHero:GetSpellData(SUMMONER_2).range)
-
+function Shen:Logic()
+if target == nil then return end
 if Mode() == "Combo" or Mode() == "Harass" and target then
     self:Items1()
-
-    local target = TargetSelector:GetTarget(self.W.Range, 1)
-    if target == nil then return end
     if self:CanCast(_W, 0) and ValidTarget(target, self.W.Range)  then
         self:CastW(target)
     end
-
-    local target = TargetSelector:GetTarget(self.Q.Range, 1)
-    if target == nil then return end
     if self:CanCast(_Q, 0) and ValidTarget(target, self.Q.Range)  then
         Control.CastSpell(HK_Q)
     end
-
-    local target = TargetSelector:GetTarget(self.R.Range, 1)
-    if target == nil then return end
     if self:CanCast(_R, 0) and ValidTarget(target, self.R.Range)  then
         Control.CastSpell(HK_R)
     end
 end
 
-function Camille:AutoSummoners()
+function Shen:AutoSummoners()
     -- IGNITE --
-    local target = TargetSelector:GetTarget(600, 1)
     if target and IsValid(target) then
         local ignDmg = getdmg("IGNITE", target, myHero)
         if myHero:GetSpellData(SUMMONER_1).name == "SummonerDot" and Ready(SUMMONER_1) and (target.health < ignDmg ) then
@@ -410,9 +398,9 @@ end
 
 end
 
-function Camille:CastW(target)
+function Shen:CastW(unit)
     if Ready(_W) and lastW + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.W, myHero)
+        local Pred = GamsteronPrediction:GetPrediction(unit, self.W, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_HIGH then
             Control.CastSpell(HK_W, Pred.CastPosition)
             lastW = GetTickCount()
@@ -420,9 +408,9 @@ function Camille:CastW(target)
     end
 end
 
-function Camille:CastE(target)
+function Shen:CastE(unit)
     if Ready(_E) and lastE + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.E, myHero)
+        local Pred = GamsteronPrediction:GetPrediction(unit, self.E, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_NORMAL then
             Control.CastSpell(HK_E, Pred.CastPosition)
             lastE = GetTickCount()
@@ -430,9 +418,9 @@ function Camille:CastE(target)
     end
 end
 
-function Camille:CastR(target)
+function Shen:CastR(unit)
     if Ready(_R) and lastR + 350 < GetTickCount() and orbwalker:CanMove() then
-        local Pred = GamsteronPrediction:GetPrediction(target, self.R, myHero)
+        local Pred = GamsteronPrediction:GetPrediction(unit, self.R, myHero)
         if Pred.Hitchance >= _G.HITCHANCE_HIGH then
             Control.CastSpell(HK_R, Pred.CastPosition)
             lastR = GetTickCount()
@@ -440,7 +428,7 @@ function Camille:CastR(target)
     end
 end
 
-function Camille:CanCast(spell, mode)
+function Shen:CanCast(spell, mode)
     if spell == _Q then
         if Ready(spell) and mode == 0 and self.Menu.Q.QCombo:Value() then
             return true
@@ -490,3 +478,4 @@ function Camille:CanCast(spell, mode)
     end
     return false
 end
+
